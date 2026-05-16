@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .auditpack import build_audit_pack
 from .case import HellCase
 from .generators import TRAP_FAMILIES, generate_case
 from .junit import report_to_junit
@@ -99,6 +100,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
         junit_path.parent.mkdir(parents=True, exist_ok=True)
         junit_path.write_text(report_to_junit(report), encoding="utf-8")
         print(f"wrote {junit_path}")
+    if args.audit_pack:
+        zip_path = Path(args.audit_pack).resolve()
+        build_audit_pack(report, cases_dir, zip_path)
+        print(f"wrote {zip_path}")
     if args.fail_threshold is not None and report.pass_rate < args.fail_threshold:
         print(
             f"\nFAIL: pass_rate {report.pass_rate:.1%} below --fail-threshold "
@@ -179,6 +184,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument(
         "--junit",
         help="also write a JUnit XML report to this path (renders in GitHub Actions / GitLab CI)",
+    )
+    p_run.add_argument(
+        "--audit-pack",
+        help=(
+            "also write a complete, hash-chained audit ZIP to this path "
+            "(PDFs + answer keys + run JSON + JUnit XML + SHA-256 manifest)"
+        ),
     )
     p_run.add_argument(
         "--fail-threshold",

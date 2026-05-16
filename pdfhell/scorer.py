@@ -115,9 +115,20 @@ def score_case(case: HellCase, model_output: str) -> CaseScore:
         matched_expected = all(_contains_loose(model_output, t) for t in case.expected_tokens)
     else:
         matched_expected = _contains_loose(model_output, case.expected_answer)
-    matched_forbidden = [
-        f for f in case.forbidden_answers if _contains_loose(model_output, f)
-    ]
+    # When a case uses ``expected_tokens`` (prose answers), the
+    # ``forbidden_answer`` is often a literal substring of any complete
+    # correct answer (e.g. the body-only phrase is contained inside a
+    # full body+footnote summary). If all tokens matched, the model
+    # demonstrably captured the right facts; ignore the substring
+    # signal. For single-value traps (hidden OCR amount, table cell),
+    # expected and forbidden are mutually exclusive by construction, so
+    # the check stays active.
+    if case.expected_tokens and matched_expected:
+        matched_forbidden: list[str] = []
+    else:
+        matched_forbidden = [
+            f for f in case.forbidden_answers if _contains_loose(model_output, f)
+        ]
     correct = matched_expected and not matched_forbidden
     refused = (not matched_expected) and (not matched_forbidden) and _looks_like_refusal(model_output)
     fell_for_trap = bool(matched_forbidden) and not matched_expected

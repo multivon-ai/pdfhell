@@ -22,18 +22,17 @@ from multivon_eval.exceptions import JudgeUnavailable
 
 # Models we know support vision input. Conservative: when in doubt we
 # don't gate (rely on the provider API to surface a real error).
+# Prefix-match — "gpt-5" catches gpt-5, gpt-5-mini, gpt-5.1, gpt-5.4, etc.
 _VISION_CAPABLE = {
     "anthropic": {
         "claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-7",
         "claude-3-5-sonnet", "claude-3-5-haiku", "claude-3-opus",
     },
     "openai": {
-        "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-5", "gpt-5-mini",
-        "gpt-5.5", "gpt-5.5-mini",
+        "gpt-4o", "gpt-4.1", "gpt-5",
     },
     "google": {
-        "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite",
-        "gemini-1.5-pro", "gemini-1.5-flash",
+        "gemini-1.5", "gemini-2.5", "gemini-3", "gemini-3.1",
     },
 }
 
@@ -169,12 +168,27 @@ def _openai_call(
     client = openai.OpenAI(
         base_url=judge.base_url if judge.base_url else None,
     )
-    resp = client.chat.completions.create(
-        model=judge.model,
-        max_tokens=max_tokens,
-        temperature=judge.temperature,
-        messages=[{"role": "user", "content": parts}],
-    )
+
+    # GPT-5.x and the o-series reasoning models deprecated `max_tokens`
+    # in favour of `max_completion_tokens`, and they reject the legacy
+    # name with a 400. They also reserve some of the output budget for
+    # internal "thinking" tokens, so we double the cap for reasoning
+    # models to leave room for both reasoning and answer.
+    model = (judge.model or "").lower()
+    is_reasoning_model = model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3") or model.startswith("o4")
+    kwargs: dict = {
+        "model": judge.model,
+        "messages": [{"role": "user", "content": parts}],
+    }
+    if is_reasoning_model:
+        kwargs["max_completion_tokens"] = max_tokens * 2
+        # Reasoning models reject temperature != 1 with a 400. Omit the
+        # param entirely; the model picks its own default.
+    else:
+        kwargs["max_tokens"] = max_tokens
+        kwargs["temperature"] = judge.temperature
+
+    resp = client.chat.completions.create(**kwargs)
     return resp.choices[0].message.content or ""
 
 
