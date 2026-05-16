@@ -88,6 +88,8 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
     label, body_tpl, footnote_tpl, expected_tpl, wrong_tpl = rng.choice(_BODY_POSITIONS)
 
     # Bind the per-template parameters.
+    # expected_tokens are the substrings any acceptable prose answer must
+    # contain — facts, not phrasing. The scorer requires ALL tokens.
     if label == "liability_cap":
         months = rng.choice([3, 6, 12, 24])
         section_num, carveout_sections = _random_sections(rng)
@@ -96,6 +98,13 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
             f"Read the attached {contract}. What is the LIABILITY CAP "
             "and what carve-outs (if any) apply? Be precise about which Sections are uncapped."
         )
+        # Acceptable: any prose that includes (1) the cap value, (2) the
+        # carve-out section refs, (3) the word "uncapped" or equivalent.
+        expected_tokens = [
+            f"{months} month",
+            "uncapped",
+            *carveout_sections.split(", "),
+        ]
     elif label == "termination_notice":
         notice_days = rng.choice([30, 60, 90])
         ctx = {"notice_days": notice_days}
@@ -103,6 +112,10 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
             f"Read the attached {contract}. Under what conditions can either party "
             "terminate this Agreement for convenience? Be specific about any restrictions."
         )
+        expected_tokens = [
+            f"{notice_days} day",
+            "12 month",  # the initial-term restriction
+        ]
     else:  # data_residency
         primary_region = rng.choice(["us-east-1", "eu-west-1", "ap-southeast-2"])
         fallback_region = rng.choice(["us-west-2", "eu-central-1", "ap-northeast-1"])
@@ -113,6 +126,11 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
             f"Read the attached {contract}. Where is Customer Data stored, "
             "and under what conditions (if any) may it be processed elsewhere?"
         )
+        expected_tokens = [
+            primary_region,
+            fallback_region,
+            "consent",
+        ]
 
     body_text = body_tpl.format(**ctx)
     footnote_text = footnote_tpl.format(**ctx)
@@ -177,6 +195,7 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
         seed=seed,
         question=question,
         expected_answer=expected_answer,
+        expected_tokens=expected_tokens,
         forbidden_answers=[wrong_answer],
         metadata={
             "contract_type": contract,

@@ -1,15 +1,12 @@
 """Vision-call dispatch for the three supported providers.
 
-Vendored intentionally rather than reaching into
-``multivon_eval.evaluators.multimodal._call_vision_judge``: that module's
-underscore prefix makes it private API and the multimodal evaluators
-only shipped on the 0.7.3 branch. Vendoring keeps pdfhell installable
-against the currently-on-PyPI ``multivon-eval==0.7.2`` and stops the
-abstraction-versioning headache before it starts.
-
-Each call returns the raw text answer. Errors surface as
-:class:`JudgeUnavailable` from multivon-eval (so the runner can treat
-upstream failures as refusals and still produce a complete report).
+Each provider's vision API has a slightly different content-block
+shape (Anthropic wants ``image`` + ``document`` blocks; OpenAI wants
+``image_url`` + ``file``; Google wants inline ``Part.from_bytes``). We
+dispatch on :attr:`JudgeConfig.provider` and let the per-provider
+helpers do the format conversion. Errors surface as
+:class:`JudgeUnavailable` so the runner can treat upstream failures as
+refusals and still produce a complete report.
 """
 from __future__ import annotations
 

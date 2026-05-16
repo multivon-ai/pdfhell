@@ -45,14 +45,35 @@ def mini_suite() -> SuiteSpec:
     return SuiteSpec(
         name="mini",
         traps={
-            "hidden_ocr_mismatch":     list(range(1001, 1011)),
-            "footnote_override":       list(range(2001, 2011)),
+            "hidden_ocr_mismatch":      list(range(1001, 1011)),
+            "footnote_override":        list(range(2001, 2011)),
             "split_table_across_pages": list(range(3001, 3011)),
         },
     )
 
 
+def smoke_suite() -> SuiteSpec:
+    """3-case quick-run for first-time users — one case per trap family.
+
+    Useful for ``uvx pdfhell run --suite smoke`` — runs in ~10 seconds
+    on Gemini Flash, costs fractions of a cent, and exercises every
+    trap family so a new user can see all three failure modes without
+    waiting for the full 30-case mini suite. Same seeds as the first
+    case in each mini-suite family, so smoke results are a strict
+    subset of mini results.
+    """
+    return SuiteSpec(
+        name="smoke",
+        traps={
+            "hidden_ocr_mismatch":      [1001],
+            "footnote_override":        [2001],
+            "split_table_across_pages": [3001],
+        },
+    )
+
+
 SUITES: dict[str, SuiteSpec] = {
+    "smoke": smoke_suite(),
     "mini": mini_suite(),
 }
 

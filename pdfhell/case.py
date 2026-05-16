@@ -29,8 +29,17 @@ class HellCase:
     seed: integer seed used to generate the case. Regenerating with the
         same seed produces a byte-identical PDF and identical answer key.
     question: the user-facing question the model must answer.
-    expected_answer: the *exact* correct answer derived from the
-        generator's parameters. Code-based ground truth.
+    expected_answer: a human-readable form of the correct answer used in
+        reports + JUnit output. For single-value traps this is also the
+        substring the scorer looks for; for prose-style traps (e.g.
+        :mod:`pdfhell.generators.footnote_override`) the scorer instead
+        uses :attr:`expected_tokens` (see below).
+    expected_tokens: optional list of substrings that ALL must appear in
+        the model's output for the case to count as correct. Used by
+        traps where the right answer can be expressed multiple
+        equally-valid ways (e.g. a list of clause carve-outs in any
+        order). When empty, the scorer falls back to a contains-match
+        against ``expected_answer``.
     forbidden_answers: optional list of plausible-but-wrong answers the
         trap aims to elicit (e.g. the hidden-OCR amount). Used by the
         scorer to detect the specific failure mode the trap was designed
@@ -47,6 +56,7 @@ class HellCase:
     question: str
     expected_answer: str
     forbidden_answers: list[str] = field(default_factory=list)
+    expected_tokens: list[str] = field(default_factory=list)
     pdf_path: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -64,6 +74,7 @@ class HellCase:
             question=raw["question"],
             expected_answer=raw["expected_answer"],
             forbidden_answers=list(raw.get("forbidden_answers", [])),
+            expected_tokens=list(raw.get("expected_tokens", [])),
             pdf_path=raw.get("pdf_path", ""),
             metadata=dict(raw.get("metadata", {})),
         )

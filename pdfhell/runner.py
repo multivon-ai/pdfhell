@@ -52,11 +52,11 @@ def parse_model_spec(spec: str) -> JudgeConfig:
             f"unsupported provider {provider!r}; "
             "use anthropic, openai, or google"
         )
-    # max_tokens=2048 gives prose answers room (e.g. footnote_override's
-    # carve-out summary) without letting models ramble. Gemini 2.5 Flash
-    # in particular allocates output tokens to internal "thinking"; a
-    # tight budget either produces empty responses or truncates the
-    # actual answer mid-sentence. 2k is enough headroom in practice.
+    # max_tokens=2048 gives prose answers room (e.g. footnote_override
+    # carve-out summaries) without letting models ramble. Gemini 2.5
+    # Flash allocates output tokens to internal "thinking"; tight
+    # budgets either produce empty responses or truncate mid-sentence.
+    # 2k is sufficient headroom in practice.
     return JudgeConfig(
         provider=provider,
         model=model.strip(),

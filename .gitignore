@@ -7,6 +7,9 @@ __pycache__/
 build/
 dist/
 runs/
+# Generated suites — regenerable via `pdfhell build`. Source of truth is
+# the SuiteSpec in pdfhell/suite.py, not the materialised PDFs.
+cases/
 .DS_Store
 .env
 .env.local

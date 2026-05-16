@@ -21,6 +21,7 @@ from pathlib import Path
 from . import __version__
 from .case import HellCase
 from .generators import TRAP_FAMILIES, generate_case
+from .junit import report_to_junit
 from .runner import parse_model_spec, run_suite
 from .scorer import SuiteReport
 from .suite import SUITES, build_suite
@@ -65,10 +66,12 @@ def _cmd_build(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    cases_dir = Path(args.cases_dir).resolve()
+    # Default cases dir tracks the suite name so `--suite smoke` doesn't
+    # silently run the mini suite.
+    cases_dir = Path(args.cases_dir).resolve() if args.cases_dir else Path(f"./cases/{args.suite}").resolve()
     if not cases_dir.is_dir():
         if args.suite in SUITES:
-            print(f"cases dir {cases_dir} not found; building suite first ...")
+            print(f"cases dir {cases_dir} not found; building {args.suite} suite first ...")
             cases_dir.mkdir(parents=True, exist_ok=True)
             build_suite(SUITES[args.suite], cases_dir)
         else:
@@ -91,6 +94,17 @@ def _cmd_run(args: argparse.Namespace) -> int:
     _print_report(report)
     print()
     print(f"wrote {out_path}")
+    if args.junit:
+        junit_path = Path(args.junit).resolve()
+        junit_path.parent.mkdir(parents=True, exist_ok=True)
+        junit_path.write_text(report_to_junit(report), encoding="utf-8")
+        print(f"wrote {junit_path}")
+    if args.fail_threshold is not None and report.pass_rate < args.fail_threshold:
+        print(
+            f"\nFAIL: pass_rate {report.pass_rate:.1%} below --fail-threshold "
+            f"{args.fail_threshold:.1%}"
+        )
+        return 1
     return 0
 
 
@@ -154,11 +168,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--model", required=True,
                        help="provider:model, e.g. anthropic:claude-sonnet-4-6")
     p_run.add_argument("--suite", default="mini", choices=tuple(SUITES.keys()))
-    p_run.add_argument("--cases-dir", default="./cases/mini",
-                       help="dir with materialised cases (built on demand if missing)")
+    p_run.add_argument(
+        "--cases-dir",
+        default=None,
+        help="dir with materialised cases (default: ./cases/<suite>; built on demand if missing)",
+    )
     p_run.add_argument("--workers", type=int, default=4)
     p_run.add_argument("--quiet", action="store_true")
     p_run.add_argument("--out", help="output JSON path (default: runs/<suite>-<model>.json)")
+    p_run.add_argument(
+        "--junit",
+        help="also write a JUnit XML report to this path (renders in GitHub Actions / GitLab CI)",
+    )
+    p_run.add_argument(
+        "--fail-threshold",
+        type=float,
+        help="exit nonzero if pass_rate is below this fraction (0.0–1.0); for CI gates",
+    )
     p_run.set_defaults(func=_cmd_run)
 
     p_report = sub.add_parser("report", help="print summary from a run JSON")

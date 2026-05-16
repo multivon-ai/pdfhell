@@ -1,16 +1,14 @@
 """Code-based scoring for pdfhell cases.
 
-The Round-7 churned design partner's complaint was that "LLM-judges-LLM"
-is circular assurance — the same complexity that fools the agent also
-fools the QAG judge. pdfhell's primary correctness signal therefore does
-*not* go through an LLM. The PDF was generated from code, so the answer
-is exactly known and the scorer compares strings directly.
+LLM-as-judge is circular: the same complexity that fools the agent
+often fools the judge. pdfhell's primary correctness signal therefore
+does *not* go through an LLM. The PDF was generated from code, so the
+answer is exactly known and the scorer compares strings directly.
 
-The QAG layer (multivon-eval's :class:`~multivon_eval.DocumentGrounding`)
-is invoked separately as the *explanation* of why the model failed —
-"the model claimed the visible amount was $18,900.25 but the answer it
-returned was $19,900.25, matching the hidden-OCR layer" — not as the
-score itself.
+QAG (multivon-eval's :class:`~multivon_eval.DocumentGrounding`) is
+available separately as the *explanation* of why a model failed — "the
+model returned $19,900.25, matching the hidden-OCR layer rather than
+the visible $18,900.25" — but it never affects pass/fail.
 """
 from __future__ import annotations
 
@@ -99,18 +97,24 @@ def score_case(case: HellCase, model_output: str) -> CaseScore:
 
     Decision tree:
 
-    - If the model output contains the ``expected_answer``: ``correct=True``.
-      We use "contains" loosely because frontier models reliably wrap
-      single-word answers in pleasantries ("The total due is $18,900.25.").
-    - Otherwise, if the output contains any of the ``forbidden_answers``:
-      ``correct=False``, ``fell_for_trap=True``. The trap caught a
-      diagnosable failure mode.
-    - Otherwise, if the output looks like a refusal: ``correct=False``,
-      ``refused=True``.
-    - Otherwise: ``correct=False``, none of the above flags — the model
-      hallucinated some third value.
+    - If the case has :attr:`HellCase.expected_tokens`, the output is
+      correct iff *every* token appears (whitespace-/case-tolerant).
+      Used for prose-style traps where the right answer can be phrased
+      multiple equally-valid ways but the *facts* are fixed (clause
+      numbers, dollar amounts, region codes).
+    - Otherwise, the output is correct iff it contains
+      :attr:`HellCase.expected_answer`. Used for single-value traps
+      (dollar amounts, dates, citations).
+    - Forbidden-answer detection runs regardless — if the model produces
+      a known wrong value, we record the diagnostic. A correct answer
+      that *also* contains a forbidden string is still wrong (it means
+      the model returned both, which is incoherent and should be flagged).
+    - Refusal detection runs last, only on otherwise-wrong outputs.
     """
-    matched_expected = _contains_loose(model_output, case.expected_answer)
+    if case.expected_tokens:
+        matched_expected = all(_contains_loose(model_output, t) for t in case.expected_tokens)
+    else:
+        matched_expected = _contains_loose(model_output, case.expected_answer)
     matched_forbidden = [
         f for f in case.forbidden_answers if _contains_loose(model_output, f)
     ]
