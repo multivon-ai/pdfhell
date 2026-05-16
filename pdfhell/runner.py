@@ -20,10 +20,10 @@ from pathlib import Path
 from typing import Iterable
 
 from multivon_eval import JudgeConfig
-from multivon_eval.evaluators.multimodal import _call_vision_judge
 
 from .case import HellCase
 from .scorer import CaseScore, SuiteReport, score_case, summarise
+from .vision import call_vision
 
 
 def parse_model_spec(spec: str) -> JudgeConfig:
@@ -77,11 +77,11 @@ def _ask_model(job: _Job, judge: JudgeConfig) -> tuple[HellCase, str]:
     Provider-level errors propagate as JudgeUnavailable. The CLI catches
     them and records the case as refused.
     """
-    answer = _call_vision_judge(
+    answer = call_vision(
         prompt=job.case.question,
-        images=[str(job.pdf_path)],
+        sources=[str(job.pdf_path)],
         judge=judge,
-        max_tokens=judge.max_tokens or 1024,
+        max_tokens=judge.max_tokens or 2048,
     )
     return job.case, answer.strip()
 

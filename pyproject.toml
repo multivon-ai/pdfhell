@@ -22,24 +22,23 @@ classifiers = [
     "Topic :: Software Development :: Testing",
 ]
 
-# Core deps are deliberately tiny. multivon-eval brings in the QAG engine,
-# provider adapters, calibration system, and audit-package CLI. reportlab
-# generates adversarial PDFs from code (procedural ground truth, not vibes).
-# pypdf is the read-side counterpart used by trap-family verifiers.
+# Core deps. multivon-eval already brings in anthropic + openai SDKs as
+# transitive deps — we pin google-genai explicitly here so a bare install
+# Just Works against any of the three frontier providers the README
+# promises (zero-extras setup is a launch-day non-negotiable).
+# reportlab generates adversarial PDFs from code; pypdf is the read side.
 dependencies = [
     "multivon-eval>=0.7.2",
+    "google-genai>=1.0",
     "reportlab>=4.0",
     "pypdf>=5.0",
 ]
 
 [project.optional-dependencies]
-# Provider extras passthrough — installing pdfhell[anthropic] also pulls the
-# Anthropic SDK so a fresh user can `uvx pdfhell run --model anthropic:...`
-# without remembering to install multivon-eval extras separately.
-anthropic = ["anthropic>=0.40"]
-openai = ["openai>=1.50"]
-google = ["google-genai>=1.0"]
-all = ["anthropic>=0.40", "openai>=1.50", "google-genai>=1.0"]
+# No provider extras needed — the three SDKs are core. The "all" alias
+# is kept for backward-compat with pip install 'pdfhell[all]' commands
+# that might appear in older docs.
+all = []
 
 [project.scripts]
 pdfhell = "pdfhell.cli:main"

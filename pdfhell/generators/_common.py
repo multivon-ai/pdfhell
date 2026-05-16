@@ -152,9 +152,15 @@ def canvas_to_bytes(make: "Callable[[canvas.Canvas], None]") -> bytes:  # noqa: 
 
     Centralised so every generator does ``return canvas_to_bytes(draw)``
     rather than duplicating BytesIO + canvas wiring.
+
+    ``invariant=True`` is non-negotiable: it tells reportlab to zero out
+    the creation timestamp and use a deterministic document ID, so the
+    same generator + seed always produces byte-identical PDFs. Without
+    this, the strategy memo's reproducibility claim is a lie and the
+    published leaderboard can't be re-derived.
     """
     buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=LETTER)
+    c = canvas.Canvas(buf, pagesize=LETTER, invariant=True)
     make(c)
     c.save()
     return buf.getvalue()
