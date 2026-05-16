@@ -1,0 +1,20 @@
+{
+  "id": "split_table_across_pages-3001",
+  "trap_family": "split_table_across_pages",
+  "seed": 3001,
+  "question": "The attached PDF contains a financial-results table. What was the Operating Income for the Northwest region in Q4 of 2026? Respond with only the dollar amount, no other text.",
+  "expected_answer": "$780,803.18",
+  "forbidden_answers": [
+    "$2,660,708.35"
+  ],
+  "pdf_path": "split_table_across_pages-3001.pdf",
+  "metadata": {
+    "target_region": "Northwest",
+    "target_quarter": "Q4",
+    "target_column": "Operating Income",
+    "target_column_key": "op_income",
+    "expected_value": 780803.18,
+    "row_count": 8,
+    "expected_failure_mode": "Model loses column-header context when reading page 2 in isolation; returns a value from an adjacent column in the same row."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "split_table_across_pages-3009",
+  "trap_family": "split_table_across_pages",
+  "seed": 3009,
+  "question": "The attached PDF contains a financial-results table. What was the Cost of Goods for the Southeast region in Q2 of 2026? Respond with only the dollar amount, no other text.",
+  "expected_answer": "$1,270,039.38",
+  "forbidden_answers": [
+    "$481,484.41"
+  ],
+  "pdf_path": "split_table_across_pages-3009.pdf",
+  "metadata": {
+    "target_region": "Southeast",
+    "target_quarter": "Q2",
+    "target_column": "Cost of Goods",
+    "target_column_key": "cogs",
+    "expected_value": 1270039.38,
+    "row_count": 8,
+    "expected_failure_mode": "Model loses column-header context when reading page 2 in isolation; returns a value from an adjacent column in the same row."
+  }
+}

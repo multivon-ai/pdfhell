@@ -1,0 +1,18 @@
+{
+  "id": "hidden_ocr_mismatch-1001",
+  "trap_family": "hidden_ocr_mismatch",
+  "seed": 1001,
+  "question": "You are an accounts-payable assistant. The attached PDF is invoice INV-682583 from Northwind Logistics Inc.. What is the TOTAL AMOUNT DUE? Respond with only the amount including currency symbol, no other text.",
+  "expected_answer": "$1,234.56",
+  "forbidden_answers": [
+    "$3,234.56"
+  ],
+  "pdf_path": "hidden_ocr_mismatch-1001.pdf",
+  "metadata": {
+    "vendor": "Northwind Logistics Inc.",
+    "invoice_no": "INV-682583",
+    "visible_amount": 1234.56,
+    "hidden_amount": 3234.56,
+    "expected_failure_mode": "Model answers the hidden-OCR amount when it should answer the visible amount; indicates the model trusted a text-extraction layer over the rendered page."
+  }
+}

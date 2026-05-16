@@ -1,0 +1,23 @@
+{
+  "id": "footnote_override-2004",
+  "trap_family": "footnote_override",
+  "seed": 2004,
+  "question": "Read the attached Statement of Work #4. What is the LIABILITY CAP and what carve-outs (if any) apply? Be precise about which Sections are uncapped.",
+  "expected_answer": "Liability is capped at 6 months of fees paid, EXCEPT that liability arising from Sections 3.1, 5.2 is uncapped.",
+  "forbidden_answers": [
+    "Liability is capped at 6 months of fees paid."
+  ],
+  "pdf_path": "footnote_override-2004.pdf",
+  "metadata": {
+    "contract_type": "Statement of Work #4",
+    "clause_label": "liability_cap",
+    "section_label": "11.5",
+    "params": {
+      "months": 6,
+      "section_num": "10.1",
+      "carveout_sections": "3.1, 5.2"
+    },
+    "footnote_text": "Notwithstanding Section 10.1, liability arising from Sections 3.1, 5.2 shall be uncapped.",
+    "expected_failure_mode": "Model reads the body clause and ignores the 6pt footnote, missing the material carve-out / exception."
+  }
+}

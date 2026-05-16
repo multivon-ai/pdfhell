@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdfhell"
+version = "0.1.0"
+description = "PDF Hell — adversarial PDFs that break AI document readers. Procedural ground truth, not LLM-as-judge."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Multivon" }]
+keywords = ["llm", "evaluation", "pdf", "multimodal", "benchmark", "adversarial", "document-ai", "rag"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Testing",
+]
+
+# Core deps are deliberately tiny. multivon-eval brings in the QAG engine,
+# provider adapters, calibration system, and audit-package CLI. reportlab
+# generates adversarial PDFs from code (procedural ground truth, not vibes).
+# pypdf is the read-side counterpart used by trap-family verifiers.
+dependencies = [
+    "multivon-eval>=0.7.2",
+    "reportlab>=4.0",
+    "pypdf>=5.0",
+]
+
+[project.optional-dependencies]
+# Provider extras passthrough — installing pdfhell[anthropic] also pulls the
+# Anthropic SDK so a fresh user can `uvx pdfhell run --model anthropic:...`
+# without remembering to install multivon-eval extras separately.
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.50"]
+google = ["google-genai>=1.0"]
+all = ["anthropic>=0.40", "openai>=1.50", "google-genai>=1.0"]
+
+[project.scripts]
+pdfhell = "pdfhell.cli:main"
+
+[project.urls]
+Homepage = "https://pdfhell.multivon.ai"
+Repository = "https://github.com/multivon-ai/pdfhell"
+Issues = "https://github.com/multivon-ai/pdfhell/issues"
+Leaderboard = "https://pdfhell.multivon.ai/leaderboard"
+
+[tool.setuptools.packages.find]
+include = ["pdfhell*"]
+
+[tool.setuptools.package-data]
+"pdfhell" = ["cases/**/*.json", "cases/**/*.pdf"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

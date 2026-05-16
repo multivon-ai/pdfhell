@@ -1,0 +1,21 @@
+{
+  "id": "footnote_override-2010",
+  "trap_family": "footnote_override",
+  "seed": 2010,
+  "question": "Read the attached Software License Agreement. Under what conditions can either party terminate this Agreement for convenience? Be specific about any restrictions.",
+  "expected_answer": "Either party may terminate for convenience on 60 days notice, BUT NOT during the initial 12-month term.",
+  "forbidden_answers": [
+    "Either party may terminate for convenience on 60 days notice."
+  ],
+  "pdf_path": "footnote_override-2010.pdf",
+  "metadata": {
+    "contract_type": "Software License Agreement",
+    "clause_label": "termination_notice",
+    "section_label": "9.5",
+    "params": {
+      "notice_days": 60
+    },
+    "footnote_text": "However, termination for convenience is not permitted during the initial twelve (12) month term.",
+    "expected_failure_mode": "Model reads the body clause and ignores the 6pt footnote, missing the material carve-out / exception."
+  }
+}

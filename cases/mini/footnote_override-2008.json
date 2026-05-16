@@ -1,0 +1,22 @@
+{
+  "id": "footnote_override-2008",
+  "trap_family": "footnote_override",
+  "seed": 2008,
+  "question": "Read the attached Software License Agreement. Where is Customer Data stored, and under what conditions (if any) may it be processed elsewhere?",
+  "expected_answer": "Customer Data is stored in eu-west-1, with disaster-recovery processing permitted in us-west-2 ONLY with written consent.",
+  "forbidden_answers": [
+    "Customer Data is stored in eu-west-1."
+  ],
+  "pdf_path": "footnote_override-2008.pdf",
+  "metadata": {
+    "contract_type": "Software License Agreement",
+    "clause_label": "data_residency",
+    "section_label": "8.4",
+    "params": {
+      "primary_region": "eu-west-1",
+      "fallback_region": "us-west-2"
+    },
+    "footnote_text": "Provided that, with Customer's written consent, Customer Data may also be processed in us-west-2 for purposes of disaster recovery.",
+    "expected_failure_mode": "Model reads the body clause and ignores the 6pt footnote, missing the material carve-out / exception."
+  }
+}
