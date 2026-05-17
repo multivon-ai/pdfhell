@@ -34,6 +34,40 @@ def _cmd_list_traps(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_discover(args: argparse.Namespace) -> int:
+    """Print the machine-readable pdfhell capability catalog as JSON.
+
+    Same shape an agent gets via the multivon-mcp ``eval_discover`` tool —
+    surfaced as a CLI command so agents that don't speak MCP can pipe
+    ``pdfhell discover --json | jq ...`` to plan a run.
+    """
+    from .generators import GENERATORS
+    catalog = {
+        "package": "pdfhell",
+        "version": __version__,
+        "traps": [],
+        "suites": [],
+    }
+    for trap in TRAP_FAMILIES:
+        _, example_case = GENERATORS[trap](seed=1)
+        catalog["traps"].append({
+            "name": trap,
+            "example_question": example_case.question,
+            "example_expected_answer": example_case.expected_answer,
+        })
+    for name, spec in SUITES.items():
+        catalog["suites"].append({
+            "name": name,
+            "version": spec.version,
+            "suite_hash": spec.suite_hash,
+            "total_cases": spec.total_cases,
+            "trap_seeds": {trap: list(seeds) for trap, seeds in spec.traps.items()},
+        })
+    json.dump(catalog, sys.stdout, indent=2 if not args.compact else None)
+    print()
+    return 0
+
+
 def _cmd_make(args: argparse.Namespace) -> int:
     try:
         pdf_bytes, case = generate_case(args.trap, args.seed)
@@ -157,6 +191,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_list = sub.add_parser("list-traps", help="list available trap families")
     p_list.set_defaults(func=_cmd_list_traps)
+
+    p_discover = sub.add_parser(
+        "discover",
+        help="emit pdfhell capability catalog as JSON (for agents that don't speak MCP)",
+    )
+    p_discover.add_argument("--compact", action="store_true", help="single-line JSON, no indent")
+    p_discover.set_defaults(func=_cmd_discover)
 
     p_make = sub.add_parser("make", help="generate one case (pdf + json)")
     p_make.add_argument("--trap", required=True, choices=TRAP_FAMILIES)
