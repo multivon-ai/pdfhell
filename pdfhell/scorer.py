@@ -56,6 +56,11 @@ def wilson_ci(passes: int, n: int, *, z: float = 1.959963984540054) -> tuple[flo
 
 _WHITESPACE_RE = re.compile(r"\s+")
 _PUNCT_NORMALIZE_RE = re.compile(r"[.,;:]+\s*$")
+# Currency markers — matched immediately before a digit so we don't
+# strip stray $ in unrelated prose. Used by _contains_loose to give the
+# match a second pass when the model omitted the currency prefix the
+# answer key happened to include.
+_LEADING_CURRENCY_RE = re.compile(r"(?<![A-Za-z0-9])[$€£¥₹]\s*(?=\d)")
 
 
 def _normalize(s: str) -> str:
@@ -68,8 +73,31 @@ def _normalize(s: str) -> str:
     return s
 
 
+def _strip_currency(s: str) -> str:
+    """Drop a leading currency symbol that sits right before a digit. So
+    '$780,803.18' → '780,803.18' but 'invoice INV-$X-1' is left alone."""
+    return _LEADING_CURRENCY_RE.sub("", s)
+
+
 def _contains_loose(haystack: str, needle: str) -> bool:
-    return _normalize(needle) in _normalize(haystack)
+    """Tolerant contains-match used as the headline correctness signal.
+
+    First tries the straight normalised contains. If that fails AND the
+    needle starts with a currency symbol, retries with both sides stripped
+    of the leading currency prefix — so an answer key of '$780,803.18'
+    still matches a model output of '780,803.18'. This kept popping up
+    on the split_table_across_pages trap, where models tend to omit the
+    '$' even when the table header includes it.
+    """
+    nh = _normalize(haystack)
+    nn = _normalize(needle)
+    if nn in nh:
+        return True
+    nh_stripped = _strip_currency(nh)
+    nn_stripped = _strip_currency(nn)
+    if nn_stripped != nn and nn_stripped in nh_stripped:
+        return True
+    return False
 
 
 @dataclass(slots=True)

@@ -179,7 +179,7 @@ Target full suite: 10 trap families, ~50 cases.
 
 For document-AI teams who need adversarial test cases tailored to *their* templates (claims forms, MSAs, medical records, KYC docs), there's a hosted generator that takes your templates and produces adversarial variants with code-based ground truth — same methodology, your data shape.
 
-Email `hello@multivon.ai` for early access, or see [multivon.ai/pricing](https://multivon.ai/pricing).
+Email `hello@multivon.ai` for early access, or see [multivon.ai/commercial](https://multivon.ai/commercial).
 
 ## Installing
 
