@@ -9,14 +9,49 @@ QAG (multivon-eval's :class:`~multivon_eval.DocumentGrounding`) is
 available separately as the *explanation* of why a model failed — "the
 model returned $19,900.25, matching the hidden-OCR layer rather than
 the visible $18,900.25" — but it never affects pass/fail.
+
+Every reported pass rate is paired with a 95% Wilson confidence
+interval. A 10-case trap-family run at 100% pass has Wilson 95% CI
+[0.72, 1.00] — meaning the *true* per-trap pass rate could plausibly
+be as low as 72%. Differences of <~10pp at n=30 are not statistically
+distinguishable. We surface the CI everywhere we surface the rate so
+nobody draws ordinal conclusions from indistinguishable runs.
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from .case import HellCase
+
+
+# ─── Statistical-rigor utility ─────────────────────────────────────────────
+
+def wilson_ci(passes: int, n: int, *, z: float = 1.959963984540054) -> tuple[float, float]:
+    """Return the (lower, upper) Wilson 95% confidence interval for a
+    binomial proportion of ``passes`` successes out of ``n`` trials.
+
+    Defaults to z = 1.96 (95% CI). Pass z=2.576 for 99% CI. Returns
+    (0.0, 1.0) when ``n == 0`` — vacuous CI for an empty run.
+
+    Why Wilson over the Wald / normal-approximation interval? At our
+    sample sizes (n=10 per trap, n=30 per suite) the Wald interval is
+    *wrong* near 0 and 1 (it can return negative lower bounds or
+    upper bounds > 1, both nonsensical for a probability). Wilson is
+    well-behaved across the entire [0, 1] domain and is the standard
+    interval for small-sample proportion estimates.
+    """
+    if n <= 0:
+        return (0.0, 1.0)
+    p = passes / n
+    denom = 1.0 + (z * z) / n
+    centre = (p + (z * z) / (2.0 * n)) / denom
+    half = (z / denom) * math.sqrt((p * (1.0 - p) + (z * z) / (4.0 * n)) / n)
+    lo = max(0.0, centre - half)
+    hi = min(1.0, centre + half)
+    return (lo, hi)
 
 
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -165,14 +200,47 @@ class SuiteReport:
     per_trap_fell_for_trap: dict[str, float]
     refused_rate: float
     cases: list[CaseScore] = field(default_factory=list)
+    suite_version: str = ""  # e.g. "mini-v1" — see pdfhell.suite.SuiteSpec.version
+    suite_hash: str = ""  # 8-char SHA-256 prefix of the sorted (trap, seed) pairs
+
+    # ─── Confidence intervals ──────────────────────────────────────────────
+
+    @property
+    def pass_rate_ci(self) -> tuple[float, float]:
+        """95% Wilson confidence interval on the overall pass rate."""
+        return wilson_ci(int(round(self.pass_rate * self.n)), self.n)
+
+    @property
+    def per_trap_pass_ci(self) -> dict[str, tuple[float, float]]:
+        """Per-trap-family Wilson 95% CIs.
+
+        Uses the actual case counts (typically 10 per family in the mini
+        suite). Surfaced on the leaderboard so 100% pass on n=10 isn't
+        confused with "the model never fails."
+        """
+        if not self.cases:
+            return {}
+        # Count cases per family rather than guessing.
+        by_family: dict[str, list[CaseScore]] = {}
+        for c in self.cases:
+            by_family.setdefault(c.trap_family, []).append(c)
+        out: dict[str, tuple[float, float]] = {}
+        for family, scores in by_family.items():
+            passes = sum(1 for s in scores if s.correct)
+            out[family] = wilson_ci(passes, len(scores))
+        return out
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "model": self.model,
             "suite": self.suite,
+            "suite_version": self.suite_version,
+            "suite_hash": self.suite_hash,
             "n": self.n,
             "pass_rate": self.pass_rate,
+            "pass_rate_ci": list(self.pass_rate_ci),
             "per_trap_pass": self.per_trap_pass,
+            "per_trap_pass_ci": {k: list(v) for k, v in self.per_trap_pass_ci.items()},
             "per_trap_fell_for_trap": self.per_trap_fell_for_trap,
             "refused_rate": self.refused_rate,
             "cases": [c.to_dict() for c in self.cases],

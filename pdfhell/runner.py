@@ -23,6 +23,7 @@ from multivon_eval import JudgeConfig
 
 from .case import HellCase
 from .scorer import CaseScore, SuiteReport, score_case, summarise
+from .suite import SUITES
 from .vision import call_vision
 
 
@@ -98,6 +99,10 @@ def run_suite(
 
     ``cases_dir`` must contain ``<case_id>.json`` and ``<case_id>.pdf``
     pairs produced by :func:`pdfhell.suite.build_suite`.
+
+    The returned :class:`SuiteReport` is annotated with the canonical
+    ``suite_version`` and ``suite_hash`` from the named suite, so
+    consumers can verify the run measured the expected cases.
     """
     judge = parse_model_spec(model_spec)
     jobs = list(_load_jobs(cases_dir))
@@ -123,7 +128,12 @@ def run_suite(
             if progress:
                 mark = "✓" if score.correct else ("⚠" if score.fell_for_trap else "✗")
                 print(f"  {mark} {score.case_id:36s}  expected={score.expected!r:30s}  got={answer[:60]!r}")
-    return summarise(model_spec, suite_name, scores)
+    report = summarise(model_spec, suite_name, scores)
+    spec = SUITES.get(suite_name)
+    if spec is not None:
+        report.suite_version = spec.version
+        report.suite_hash = spec.suite_hash
+    return report
 
 
 def _load_jobs(cases_dir: Path) -> Iterable[_Job]:

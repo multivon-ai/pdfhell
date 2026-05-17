@@ -1,37 +1,67 @@
 # PDF Hell
 
-**Adversarial PDFs that break AI document readers — with procedural ground truth, not LLM-as-judge.**
+**Adversarial PDFs that stress-test AI document readers — with procedural ground truth, not LLM-as-judge.**
 
-PDF Hell is a small, sharp benchmark for the "AI reads PDFs" claim. Every test case is a PDF generated *from code*, so the correct answer is known exactly. There's no LLM judging another LLM's interpretation — the same loop that fooled the model isn't asked to grade it.
+PDF Hell is a small, focused benchmark for three specific failure modes in AI document pipelines. Every test case is a PDF generated *from code*, so the correct answer is known exactly. There's no LLM judging another LLM's interpretation — the same complexity that fools the model isn't asked to grade it.
 
-If your AI claims it can read documents, it should survive PDFs designed to break it.
+## The headline finding (mini-v1, 30 cases, 2026-05-17)
+
+GPT-4o falls for the hidden-OCR trap on **10 out of 10 cases (95% Wilson CI [72%, 100%])** — it consistently returns the *invisible* amount from the PDF's text layer instead of the *visible* amount rendered on the page:
+
+```
+Trap: hidden_ocr_mismatch (invoice — visible total $12,345.67, hidden OCR total $22,345.67)
+Question: What is the TOTAL AMOUNT DUE?
+
+→ openai:gpt-4o            $22,345.67   ← fell for trap (10/10 in this trap family)
+→ openai:gpt-5.4-mini      $22,345.67   ← fell for trap (9/10)
+→ openai:gpt-5.4           $12,345.67   ← correct (8/10 across trap)
+→ google:gemini-2.5-flash  $12,345.67   ← correct (10/10)
+→ anthropic:claude-sonnet-4-6  $12,345.67   ← correct (10/10)
+```
+
+The visible page, the hidden text layer, and an agent that fuses both will give three different answers. pdfhell exists to catch that.
 
 ## Quickstart (30 seconds)
 
 ```bash
-# 3-case smoke run against the cheapest vision model — works in any env with a Gemini key
+# 3-case smoke run against the cheapest vision model
 export GOOGLE_API_KEY=...
 uvx pdfhell run --model google:gemini-2.5-flash --suite smoke
 
-# Or run the full mini suite (30 cases, ~10s on Flash, ~$0.01)
+# Or the full mini-v1 suite (30 cases, ~10s on Flash, ~$0.01)
 uvx pdfhell run --model anthropic:claude-sonnet-4-6 --suite mini
 
-# Or just generate one trap PDF and open it
+# Or generate one trap PDF and inspect it
 uvx pdfhell make --trap hidden_ocr_mismatch --seed 42
 open ./cases/hidden_ocr_mismatch-0042.pdf
 ```
 
-That's it. `pdfhell run` builds the suite on first use, sends each PDF to the vision model, and grades the answer against code-based ground truth.
+`pdfhell run` builds the suite on first use, sends each PDF to the vision model, and grades the answer against code-based ground truth.
 
-Smoke result on Gemini 2.5 Flash (one case per family, run this minute):
+## Mini-v1 leaderboard (8 models, 30 cases)
 
-```
-PDF Hell smoke suite — n=3
-model: google:gemini-2.5-flash
-pass: 3/3  (100.0%)
-```
+| Model | Pass rate | 95% CI | Hidden OCR | Footnote | Split table |
+|---|---:|---:|---:|---:|---:|
+| `anthropic:claude-sonnet-4-6` | 29/30 (97%) | [83%, 99%] | 10/10 | 9/10 | 10/10 |
+| `google:gemini-3.1-pro-preview` | 28/30 (93%) | [78%, 98%] | 10/10 | 8/10 | 10/10 |
+| `google:gemini-3.1-flash-lite` | 28/30 (93%) | [78%, 98%] | 10/10 | 8/10 | 10/10 |
+| `google:gemini-2.5-pro` | 28/30 (93%) | [78%, 98%] | 10/10 | 8/10 | 10/10 |
+| `google:gemini-2.5-flash` | 28/30 (93%) | [78%, 98%] | 10/10 | 8/10 | 10/10 |
+| `openai:gpt-5.4` | 27/30 (90%) | [74%, 97%] | 8/10 | 9/10 | 10/10 |
+| `openai:gpt-5.4-mini` | 20/30 (67%) | [49%, 81%] | 1/10 | 9/10 | 10/10 |
+| `openai:gpt-4o` | 14/30 (47%) | [30%, 64%] | **0/10** | 8/10 | 6/10 |
 
-## What's in the mini suite
+**What is and isn't supported by this data:**
+
+- ✅ GPT-4o is materially worse than the others on this suite — its CI [30%, 64%] does not overlap with any other model's.
+- ✅ GPT-4o falls for the hidden-OCR trap 100% of cases (CI [72%, 100%]). Every failure returned the hidden-OCR amount specifically.
+- ✅ GPT-5.4 fixes most of it (80% pass on hidden OCR) — a real generational improvement.
+- ❌ "Claude leads" — Sonnet's CI [83%, 99%] overlaps with Gemini's [78%, 98%]. The two are statistically indistinguishable on this suite. Don't read ordinal rankings from 30 cases.
+- ❌ "PDF Hell is sufficient to evaluate document AI." It's a stress test for three specific failure modes. Pair it with a domain benchmark (DocVQA, your own regression suite) for coverage.
+
+Suite hash: `8ad87b8d` (mini-v1, 30 cases). Every leaderboard row above was measured on the same hash. Raw run JSON at <https://github.com/multivon-ai/multivon-web/tree/main/public/data/pdfhell-runs>.
+
+## What's in mini-v1
 
 | Trap family | Cases | What breaks |
 |---|---|---|
@@ -39,9 +69,9 @@ pass: 3/3  (100.0%)
 | `footnote_override` | 10 | Legal clauses where a 6pt footnote overrides the body — liability caps with carve-outs, terminations with restrictions, data-residency with disaster-recovery exceptions. |
 | `split_table_across_pages` | 10 | Financial tables where the header row sits on page 1 and the body rows on page 2. RAG loaders that paginate independently lose column context. |
 
-Every case has a deterministic seed. Re-running with the same seed regenerates **byte-identical PDFs** and identical answer keys. `Canvas(invariant=True)` is set on every generator so timestamps and document IDs don't drift between runs.
+Every case has a deterministic seed. Re-running with the same seed regenerates **byte-identical PDFs** and identical answer keys (`Canvas(invariant=True)` on every generator).
 
-The full suite (10 trap families, ~50 cases) is on the [roadmap](#roadmap).
+**Suite versioning.** The `mini-v1` label + suite hash (`8ad87b8d`) fingerprints the exact (trap_family, seed) pairs measured. Adding a new trap family produces `mini-v2` with a different hash — runs across different hashes are not directly comparable. See the next section for the roadmap.
 
 ## Why this exists
 
