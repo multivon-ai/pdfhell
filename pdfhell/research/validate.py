@@ -43,19 +43,52 @@ class GateResult:
 
 
 def gate_parseable(pdf_bytes: bytes) -> GateResult:
-    """The PDF must open in pypdf and have at least one page."""
+    """The PDF must open in at least one mainstream Python PDF parser.
+
+    Tries pypdf first (strict-conformance, what most enterprise
+    pipelines use), then pdfplumber (laxer, built on pdfminer.six)
+    as a fallback. The intent is to accept PDFs that any major
+    real-world tool can read, even if pypdf's stricter validation
+    flags non-fatal annotation-dict quirks (e.g., reportlab's
+    FreeTextAnnotation missing ``fontName``).
+
+    Reasoning: a PDF that pdfplumber can parse will be successfully
+    read by RAG pipelines (LangChain's PyMuPDFLoader, LlamaIndex's
+    PyPDFLoader, etc.) — strict-only rejection drops valid traps.
+    """
+    pypdf_err = None
     try:
         import pypdf
-    except ImportError:
-        return GateResult(False, "parseable", "pypdf not installed")
-    try:
         reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
         n = len(reader.pages)
         if n < 1:
-            return GateResult(False, "parseable", "0 pages")
-        return GateResult(True, "parseable", f"{n} pages")
+            return GateResult(False, "parseable", "0 pages (pypdf)")
+        return GateResult(True, "parseable", f"{n} pages (pypdf)")
+    except ImportError:
+        return GateResult(False, "parseable", "no PDF parser installed")
     except Exception as exc:
-        return GateResult(False, "parseable", f"{type(exc).__name__}: {exc}")
+        pypdf_err = f"{type(exc).__name__}: {exc}"
+
+    try:
+        import pdfplumber
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            n = len(pdf.pages)
+        if n < 1:
+            return GateResult(False, "parseable", "0 pages (pdfplumber)")
+        return GateResult(
+            True, "parseable",
+            f"{n} pages (pdfplumber fallback; pypdf said: {pypdf_err[:80]})",
+        )
+    except ImportError:
+        pass
+    except Exception as exc:
+        return GateResult(
+            False, "parseable",
+            f"both parsers failed. pypdf: {pypdf_err[:120]}. "
+            f"pdfplumber: {type(exc).__name__}: {exc}",
+        )
+
+    return GateResult(False, "parseable", f"pypdf: {pypdf_err}")
 
 
 # ─── Gate 2: deterministic ─────────────────────────────────────────────
