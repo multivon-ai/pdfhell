@@ -2,6 +2,76 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] — 2026-05-23
+
+### Added — `pdfhell.research`: autoresearch-style discovery loop
+
+A new subpackage that **discovers new adversarial PDF traps automatically**
+by optimising for cross-model discrimination. Inspired by Karpathy's
+[`autoresearch`](https://github.com/karpathy/autoresearch); same pattern,
+ported from "minimise nanochat val_bpb" to "maximise pass-rate spread
+across the eval panel."
+
+```
+propose → validate → probe (2 models) → full (8 models) → keep/revert
+```
+
+Three strong reasoning models rotate as the researcher:
+`claude-opus-4-7`, `gpt-5`, `gemini-2.5-pro`. Each proposes one
+candidate generator (full Python source) per turn. Candidates pass
+through five validation gates (parseable, deterministic, answerable,
+forbidden-clean, lint-clean) before any vision API spend is committed.
+
+### First agent-discovered trap: `unicode_confusable_total`
+
+The very first overnight run (10 candidates, $7 spend) produced
+`unicode_confusable_total` — an invoice with two visually-identical
+"TOTAL" rows where one label uses ASCII Latin "O" and the other uses
+Cyrillic capital "О" (U+041E), with a printed disambiguation clause
+specifying which codepoint is binding.
+
+Discrimination across 8 models (15 cases each):
+
+| Model | Pass | Spread |
+|---|---:|---:|
+| `openai:gpt-5` | 100% | |
+| `anthropic:claude-haiku-4-5` | 93% | |
+| `google:gemini-2.5-flash` | 87% | |
+| `openai:gpt-4o` | 80% | |
+| `google:gemini-2.5-pro` | 67% | |
+| `anthropic:claude-sonnet-4-6` | 60% | |
+| `anthropic:claude-opus-4-7` | **0%** | |
+| `google:gemini-flash-lite-latest` | **0%** | spread = 1.00 |
+
+**Headline:** Anthropic's most expensive model (Opus 4-7) fails 0/15
+while Anthropic's cheap model (Haiku 4-5) passes 14/15. Same provider,
+same vision pipeline class — different blind spots. The premium tier
+is *not* universally better at document reading.
+
+This trap is in `keep/` pending human review and will be merged into
+`mini-v3` after a confirmation re-run.
+
+### Methodology promise
+
+Every overnight run produces:
+- A new row in `results.tsv` for every candidate proposed (kept or
+  reverted) — the research trail.
+- A `keep/<id>.json` snapshot for every survivor: code, panel
+  results, researcher rationale, novelty score, timestamp.
+- A `budget.jsonl` audit log of every dollar spent.
+
+These are sufficient to reproduce or critique the methodology. The
+agent does not merge its own work — a human curator promotes
+candidates from `keep/` into the next `mini-vN`.
+
+### Not changed
+
+- `mini-v1` and `mini-v2` `suite_hash` unchanged.
+- All existing CLI commands, output JSON schemas, and audit-pack
+  format unchanged.
+- `pdfhell.runner`, `pdfhell.scorer`, `pdfhell.case` unchanged — the
+  research loop is read-only with respect to runtime contracts.
+
 ## [0.2.0] — 2026-05-23
 
 ### Added — `mini-v2` adversarial suite (6 families × 30 cases = 180 cases)

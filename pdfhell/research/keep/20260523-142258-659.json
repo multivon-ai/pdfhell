@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-142258-659",
+  "trap_family": "currency_mismatch_conversion",
+  "researcher_model": "openai:gpt-5",
+  "rationale": "Targets cross-currency reasoning: the page headlines a EUR total while a clear settlement clause requires USD payment at a stated FX rate. Many VLMs grab the salient EUR figure or fail to apply conversion/rounding. Text-only extraction plus reasoning resolves it. Distinct from small-print/hidden-text: this probes arithmetic + policy compliance. Expect weaker models (e.g., Haiku, some Flash variants) to answer the EUR amount or $-prefixed EUR.",
+  "action": "create_generator",
+  "score": 0.0239,
+  "novelty": 0.0239,
+  "probe_result": {
+    "trap_family": "currency_mismatch_conversion",
+    "n_cases": 5,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-2.5-flash": 0.4
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.045,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.4,
+    "spread": 0.6,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "currency_mismatch_conversion",
+    "n_cases": 15,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-sonnet-4-6": 1.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-haiku-4-5": 0.8,
+      "openai:gpt-4o": 0.8666666666666667,
+      "google:gemini-2.5-flash": 0.9333333333333333,
+      "google:gemini-2.5-pro": 1.0,
+      "openai:gpt-5": 1.0
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "openai:gpt-4o": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.0,
+      "openai:gpt-5": 0.0
+    },
+    "cost_usd": 2.94,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "from __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Redwood Industrial Systems LLC\",\n    \"Bluefin Maritime Services Ltd.\",\n    \"Northline Data Centers Inc.\",\n    \"Sable Ridge Consulting Co.\",\n    \"Cobalt Harbor Biologics\",\n    \"Altavista Freight & Logistics\",\n    \"Keystone Hydro Works\",\n    \"Aurora Field Engineering\",\n    \"Summit Ridge Minerals\",\n    \"Horizon Analytics Group\",\n]\n\n\ndef _money_from_cents(cents: int, currency: str) -> str:\n    return C.fmt_money(cents / 100.0, currency)\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n\n    vendor = C.pick_from(rng, _VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n    po_no = f\"PO-{rng.randint(2000, 9999)}\"\n\n    # Choose a clean EUR total in whole cents and a plausible FX rate.\n    euro_total_cents = rng.choice([\n        1234567, 2490000, 385005, 478209, 642000, 915500, 1532750, 2079400\n    ])  # e.g., 12,345.67 EUR etc.\n\n    fx_rate = C.pick_from(rng, [1.06, 1.09, 1.12, 1.15, 1.18, 1.21, 1.24, 1.27, 1.30, 1.33])\n    usd_total = round((euro_total_cents / 100.0) * fx_rate + 1e-9, 2)\n\n    eur_str = _money_from_cents(euro_total_cents, \"\u20ac\")\n    usd_str = C.fmt_money(usd_total, \"$\")\n\n    # Split line items so they sum exactly to the EUR total.\n    a1 = int(round(euro_total_cents * 0.55))\n    a2 = int(round(euro_total_cents * 0.30))\n    a3 = euro_total_cents - a1 - a2\n\n    case_id = f\"currency_mismatch_conversion-{seed:04d}\"\n\n    question = (\n        \"You are an accounts-payable assistant. The invoice totals are shown in EUR, \"\n        \"but the settlement note specifies USD payment at the stated FX rate. \"\n        f\"How much (in USD) should be paid for invoice {invoice_no}? Respond with only the amount including currency symbol.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        # Header\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 730, \"INVOICE\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 710, vendor)\n        c.drawString(72, 695, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 680, f\"PO Reference: {po_no}\")\n        c.drawString(72, 665, \"Net 30 from invoice date\")\n\n        # Bill/Ship columns (light filler)\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(72, 640, \"BILL TO\")\n        c.drawString(320, 640, \"SHIP TO\")\n        c.setFont(\"Helvetica\", 10)\n        c.drawString(72, 625, \"Accounts Payable\")\n        c.drawString(320, 625, \"Receiving Dock\")\n\n        # Line items in EUR\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(72, 600, \"DESCRIPTION\")\n        c.drawString(420, 600, \"AMOUNT (EUR)\")\n        y = 582\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, y, \"Q3 program services\")\n        c.drawRightString(520, y, _money_from_cents(a1, \"\u20ac\"))\n        y -= 18\n        c.drawString(72, y, \"Q3 hosting + infrastructure\")\n        c.drawRightString(520, y, _money_from_cents(a2, \"\u20ac\"))\n        y -= 18\n        c.drawString(72, y, \"Q3 support retainer\")\n        c.drawRightString(520, y, _money_from_cents(a3, \"\u20ac\"))\n        y -= 10\n        c.line(420, y, 520, y)\n        y -= 22\n\n        # Prominent EUR total (decoy for USD question)\n        c.setFont(\"Helvetica-Bold\", 14)\n        c.drawString(72, y, \"TOTAL DUE (EUR):\")\n        c.drawRightString(520, y, eur_str)\n\n        # Policy note: payable in USD at given FX rate\n        y -= 28\n        c.setFont(\"Helvetica\", 10)\n        C.draw_paragraph(\n            c,\n            (\n                \"Settlement note: All amounts are payable in USD. Apply conversion at settlement \"\n                f\"using the published rate 1 EUR = {fx_rate:.2f} USD. Round to the nearest cent. \"\n                \"Wire USD to the account on file.\"\n            ),\n            72, y,\n            font=C.FontSpec(size=10),\n            width=C.PAGE_WIDTH - 144,\n        )\n\n        # Small print to anchor the instruction but still fully legible\n        c.setFont(\"Helvetica-Oblique\", 9)\n        c.drawString(72, 90, \"Note: For reporting, amounts may be shown in EUR; settlement occurs in USD per rate above.\")\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"currency_mismatch_conversion\",\n        seed=seed,\n        question=question,\n        expected_answer=usd_str,\n        forbidden_answers=[C.fmt_money(euro_total_cents / 100.0, \"$\")],  # common error: slap $ on the EUR number\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"po_no\": po_no,\n            \"eur_total\": euro_total_cents / 100.0,\n            \"usd_rate\": fx_rate,\n            \"usd_total\": usd_total,\n            \"expected_failure_mode\": (\n                \"Model returns the visibly prominent EUR total or attaches a $ to it, \"\n                \"ignoring the conversion note or failing the arithmetic.\"\n            ),\n            \"diagnostic\": (\n                \"A careful reader converts EUR to USD at the stated rate and rounds to 2dp.\"\n            ),\n        },\n    )\n\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T14:25:07+00:00"
+}

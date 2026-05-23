@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pdfhell"
-version = "0.2.0"
+version = "0.3.0"
 description = "PDF Hell — adversarial PDFs that break AI document readers. Procedural ground truth, not LLM-as-judge."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -39,6 +39,14 @@ dependencies = [
 # is kept for backward-compat with pip install 'pdfhell[all]' commands
 # that might appear in older docs.
 all = []
+# Research loop (pdfhell.research) needs the provider SDKs as
+# *direct* deps to drive the researcher rotation + text-only verifier
+# calls bypassing multivon-eval's adapter layer.
+research = [
+    "anthropic>=0.40",
+    "openai>=1.50",
+    "google-genai>=1.0",
+]
 
 [project.scripts]
 pdfhell = "pdfhell.cli:main"
@@ -54,7 +62,12 @@ Documentation = "https://docs.multivon.ai/pdfhell/quickstart"
 include = ["pdfhell*"]
 
 [tool.setuptools.package-data]
-"pdfhell" = ["cases/**/*.json", "cases/**/*.pdf"]
+"pdfhell" = [
+    "cases/**/*.json",
+    "cases/**/*.pdf",
+    "research/program.md",
+    "research/README.md",
+]
 
 [tool.ruff]
 line-length = 100

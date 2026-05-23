@@ -68,6 +68,34 @@ open ./cases/hidden_ocr_mismatch-0042.pdf
 
 Suite hash: `8ad87b8d` (mini-v1, 30 cases). Every leaderboard row above was measured on the same hash. Raw run JSON at <https://github.com/multivon-ai/multivon-web/tree/main/public/data/pdfhell-runs>.
 
+## Research-discovered traps (0.3.0)
+
+pdfhell ships with an autoresearch loop ([`pdfhell.research`](pdfhell/research/README.md)) that **discovers new adversarial traps automatically** by maximising cross-model discrimination on the eval panel. Three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro) rotate as the researcher; candidates pass five validation gates (parseable, deterministic, answerable, forbidden-clean, lint-clean) before any eval spend is committed.
+
+The very first overnight run ($7 budget, 10 candidates, 2 hours wall clock) discovered **`unicode_confusable_total`**:
+
+```
+Two visually-identical "TOTAL" rows. One uses ASCII "O". The other
+uses Cyrillic capital "О" (U+041E). A printed clause names which
+codepoint is binding. Vision-only readers can't tell the labels
+apart and must guess.
+```
+
+| Model | Pass on `unicode_confusable_total` |
+|---|---:|
+| `openai:gpt-5` | 100% |
+| `anthropic:claude-haiku-4-5` | 93% |
+| `google:gemini-2.5-flash` | 87% |
+| `openai:gpt-4o` | 80% |
+| `google:gemini-2.5-pro` | 67% |
+| `anthropic:claude-sonnet-4-6` | 60% |
+| `anthropic:claude-opus-4-7` | **0%** |
+| `google:gemini-flash-lite-latest` | **0%** |
+
+**The premium tier is not universally better.** Opus 4-7 (Anthropic's most expensive vision model) fails 0/15 while Haiku 4-5 (Anthropic's cheapest) passes 14/15. Same provider, different blind spots.
+
+The full research trail (every candidate, every rationale, every dollar) lives in [`pdfhell/research/results.tsv`](pdfhell/research/results.tsv), `keep/*.json`, and `budget.jsonl`. See [pdfhell/research/README.md](pdfhell/research/README.md) for the methodology and how to run your own loop.
+
 ## What's in mini-v1
 
 | Trap family | Cases | What breaks |

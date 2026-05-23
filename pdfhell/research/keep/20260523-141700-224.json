@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-141700-224",
+  "trap_family": "unicode_confusable_total",
+  "researcher_model": "anthropic:claude-opus-4-7",
+  "rationale": "Targets a gap between vector-text codepoint awareness and pixel-only reading. Two identical-looking 'TOTAL' rows differ only by ASCII O vs Cyrillic U+041E; a printed clause says which codepoint is binding. Models that read raw text (or strong reasoners) resolve it; vision-only or weaker models can't tell the labels apart and guess. Distinct from existing footnote/redaction/multi-column traps \u2014 this probes Unicode-awareness in document grounding. Expect Gemini Flash and GPT-4o to fail; Sonnet/Opu",
+  "action": "create_generator",
+  "score": 1.0,
+  "novelty": 1.0,
+  "probe_result": {
+    "trap_family": "unicode_confusable_total",
+    "n_cases": 5,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 0.8,
+      "google:gemini-2.5-flash": 0.4
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.045,
+    "crashed_models": [],
+    "pass_max": 0.8,
+    "pass_min": 0.4,
+    "spread": 0.4,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "unicode_confusable_total",
+    "n_cases": 15,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.9333333333333333,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 0.8,
+      "anthropic:claude-sonnet-4-6": 0.6,
+      "google:gemini-2.5-flash": 0.8666666666666667,
+      "openai:gpt-5": 1.0,
+      "google:gemini-2.5-pro": 0.6666666666666666
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "openai:gpt-5": 0.0,
+      "google:gemini-2.5-pro": 0.3333333333333333
+    },
+    "cost_usd": 2.94,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "\"\"\"Trap family: unicode confusable in the binding total.\n\nThe page shows an invoice with multiple line-item totals. Two candidate\n'TOTAL' rows appear: one labeled with a normal ASCII 'TOTAL', another\nlabeled with a visually-identical 'T\u041eTAL' where the 'O' is the\nCyrillic capital O (U+041E). Visually a human cannot distinguish them;\nthey must rely on a disambiguating clause in plain text that says: 'The\nbinding total is the row whose label contains only ASCII Latin\ncharacters.' (or its inverse).\n\nText-extraction pipelines and strong models that inspect raw bytes can\ntell the two rows apart trivially. Vision-only pipelines (and models\nthat over-rely on the rasterised image) cannot distinguish the labels\nand must guess, often picking the first or larger number.\n\nThe question is procedurally fair: a careful human reading the\ndocument's vector text (e.g. selecting text in a PDF viewer) can copy\nthe two TOTAL labels, see the codepoint difference, and apply the\ndisambiguating rule.\n\"\"\"\nfrom __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Northwind Robotics Ltd.\",\n    \"Sablefin Capital Group\",\n    \"Greyloft Avionics Inc.\",\n    \"Pinecrest Materials Co.\",\n    \"Hartwell Biosciences PLC\",\n    \"Ironvale Logistics LLC\",\n]\n\n# Cyrillic capital O = U+041E (looks like Latin O)\n_CYR_O = \"\\u041e\"\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n\n    vendor = rng.choice(_VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n\n    amount_a = round(rng.uniform(8000, 25000), 2)\n    amount_b = round(amount_a * rng.uniform(1.4, 2.2), 2)\n\n    # Randomise which label (ASCII vs Cyrillic) is the binding one and\n    # which amount is on which row.\n    ascii_is_binding = rng.random() < 0.5\n    ascii_on_top = rng.random() < 0.5\n\n    # Assign amounts to labels independently of position.\n    if rng.random() < 0.5:\n        ascii_amount, cyr_amount = amount_a, amount_b\n    else:\n        ascii_amount, cyr_amount = amount_b, amount_a\n\n    binding_amount = ascii_amount if ascii_is_binding else cyr_amount\n    decoy_amount = cyr_amount if ascii_is_binding else ascii_amount\n\n    binding_str = C.fmt_money(binding_amount)\n    decoy_str = C.fmt_money(decoy_amount)\n\n    ascii_label = \"TOTAL\"\n    cyr_label = f\"T{_CYR_O}TAL\"  # visually identical\n\n    # The disambiguating clause names which label is binding.\n    if ascii_is_binding:\n        rule_clause = (\n            \"For the avoidance of doubt: the binding amount is the row whose \"\n            \"label 'TOTAL' is written entirely in ASCII Latin characters \"\n            \"(Unicode block Basic Latin). Any visually-similar label whose \"\n            \"letters include codepoints from the Cyrillic block (e.g. U+041E) \"\n            \"is a non-binding reference value retained from a prior draft.\"\n        )\n    else:\n        rule_clause = (\n            \"For the avoidance of doubt: the binding amount is the row whose \"\n            \"label is written using the Cyrillic capital letter O (U+041E) in \"\n            \"place of the Latin O. Any label written entirely in ASCII Latin \"\n            \"characters is a non-binding reference value retained from a \"\n            \"prior draft.\"\n        )\n\n    case_id = f\"unicode_confusable_total-{seed:04d}\"\n    question = (\n        f\"You are processing invoice {invoice_no} from {vendor}. According to \"\n        \"the disambiguation clause printed on the invoice, what is the binding \"\n        \"amount owed? Respond with only the amount including currency symbol, \"\n        \"no other text.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 670, \"Terms: Net 30\")\n\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(72, 620, \"DESCRIPTION\")\n        c.drawRightString(500, 620, \"AMOUNT\")\n\n        y = 600\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, y, \"Engagement services (current period)\")\n        c.drawRightString(500, y, C.fmt_money(round(ascii_amount * 0.6, 2)))\n        y -= 18\n        c.drawString(72, y, \"Engagement services (prior-draft reconciliation)\")\n        c.drawRightString(500, y, C.fmt_money(round(cyr_amount * 0.6, 2)))\n        y -= 24\n\n        c.line(380, y + 12, 500, y + 12)\n\n        # Two TOTAL rows; identical-looking labels.\n        top_label, top_amount = (\n            (ascii_label, ascii_amount) if ascii_on_top else (cyr_label, cyr_amount)\n        )\n        bot_label, bot_amount = (\n            (cyr_label, cyr_amount) if ascii_on_top else (ascii_label, ascii_amount)\n        )\n\n        c.setFont(\"Helvetica-Bold\", 14)\n        c.drawString(72, y, f\"{top_label}:\")\n        c.drawRightString(500, y, C.fmt_money(top_amount))\n        y -= 22\n        c.drawString(72, y, f\"{bot_label}:\")\n        c.drawRightString(500, y, C.fmt_money(bot_amount))\n        y -= 40\n\n        c.setFont(\"Helvetica-Oblique\", 9)\n        C.draw_paragraph(\n            c,\n            rule_clause,\n            72, y,\n            font=C.FontSpec(family=\"Helvetica-Oblique\", size=9),\n            width=C.PAGE_WIDTH - 144,\n        )\n\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"unicode_confusable_total\",\n        seed=seed,\n        question=question,\n        expected_answer=binding_str,\n        forbidden_answers=[decoy_str],\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"ascii_is_binding\": ascii_is_binding,\n            \"ascii_on_top\": ascii_on_top,\n            \"ascii_amount\": ascii_amount,\n            \"cyr_amount\": cyr_amount,\n            \"binding_amount\": binding_amount,\n            \"decoy_amount\": decoy_amount,\n            \"expected_failure_mode\": (\n                \"Vision-only models cannot distinguish ASCII 'O' from \"\n                \"Cyrillic 'O' in the rendered glyphs and so cannot apply \"\n                \"the disambiguation rule; they pick the wrong TOTAL row.\"\n            ),\n        },\n    )\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T14:19:14+00:00"
+}
