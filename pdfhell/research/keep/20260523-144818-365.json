@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-144818-365",
+  "trap_family": "mirrored_footer_notice",
+  "researcher_model": "openai:gpt-5",
+  "rationale": "Targets vision-only OCR weakness on horizontally mirrored text. The binding amount is only present in a mirrored footer notice; humans and text-extraction pipelines can read it, but many VLM vision encoders skip or misread mirrored glyphs. Distinct from small-print/rotation/Unicode traps. Expect weaker models (Haiku, Flash-lite) to fail while stronger (GPT-5/Opus) succeed, producing spread.",
+  "action": "create_generator",
+  "score": 0.1735,
+  "novelty": 0.1735,
+  "probe_result": {
+    "trap_family": "mirrored_footer_notice",
+    "n_cases": 5,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.045,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "mirrored_footer_notice",
+    "n_cases": 10,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 1.0,
+      "anthropic:claude-sonnet-4-6": 1.0,
+      "openai:gpt-5": 1.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.0
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-5": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.4
+    },
+    "cost_usd": 1.96,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "from __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Arcadia Process Solutions LLC\",\n    \"Northwind Commodities Inc.\",\n    \"Sable Ridge Instruments Co.\",\n    \"Blue Fathom Analytics Ltd.\",\n    \"Ironwood Fabrication Group\",\n    \"Cascade Clinical Systems\",\n    \"Helios Maritime Services\",\n    \"Pioneer Orchard Foods Co.\",\n]\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n\n    vendor = C.pick_from(rng, _VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n    issue_date = f\"2026-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d}\"\n\n    # Choose a clean headline amount; no competing dollar figures appear elsewhere.\n    amount = round(rng.uniform(1200, 125000), 2)\n    amount_str = C.fmt_money(amount)\n\n    case_id = f\"mirrored_footer_notice-{seed:04d}\"\n    question = (\n        \"You are an accounts-payable assistant. According to the mirrored binding \"\n        \"notice at the bottom of the page, how much is owed on this invoice? \"\n        \"Respond with only the amount including the currency symbol.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        # Header and basic invoice scaffolding (no other monetary numbers shown).\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 670, f\"Issue date: {issue_date}\")\n        c.drawString(72, 655, \"Payment terms: Net 30\")\n\n        C.draw_paragraph(\n            c,\n            \"Please review the binding notice before remitting payment. \"\n            \"All remittances must comply with the notice terms.\",\n            72,\n            620,\n            font=C.FontSpec(size=11),\n        )\n\n        # Non-mirrored helper note so a human knows to read the mirrored text.\n        c.setFont(\"Helvetica-Oblique\", 9)\n        c.drawString(72, 120, \"Binding notice below is mirrored (read carefully).\")\n        c.line(72, 115, C.PAGE_WIDTH - 72, 115)\n\n        # The trap: horizontally mirrored binding notice carrying the ONLY dollar amount.\n        # We flip the X axis around the page width so text is mirrored but still vector text.\n        c.saveState()\n        c.translate(C.PAGE_WIDTH, 0)\n        c.scale(-1, 1)\n        c.setFont(\"Helvetica-Bold\", 12)\n        c.drawString(\n            72,\n            95,\n            f\"BINDING NOTICE: The amount owed by the customer is {amount_str}.\",\n        )\n        c.restoreState()\n\n        # Footer page marker\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"mirrored_footer_notice\",\n        seed=seed,\n        question=question,\n        expected_answer=amount_str,\n        forbidden_answers=[],\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"issue_date\": issue_date,\n            \"mirrored_clause_y\": 95,\n            \"expected_failure_mode\": (\n                \"Vision models fail to read horizontally mirrored text and either skip it \"\n                \"or guess from context; text extractors and attentive humans read it fine.\"\n            ),\n            \"diagnostic\": (\n                \"The only dollar figure appears in mirrored vector text. PDF text extraction \"\n                \"still surfaces the literal codepoints; a pure-vision pipeline struggles.\"\n            ),\n        },\n    )\n\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T14:50:37+00:00"
+}
