@@ -202,12 +202,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_make = sub.add_parser("make", help="generate one case (pdf + json)")
     p_make.add_argument("--trap", required=True, choices=TRAP_FAMILIES)
     p_make.add_argument("--seed", required=True, type=int)
-    p_make.add_argument("--out", default="./cases", help="output directory (default: ./cases)")
+    p_make.add_argument(
+        "--out", "--output-dir",
+        dest="out",
+        default="./cases",
+        help="output directory (default: ./cases) — alias: --output-dir",
+    )
     p_make.set_defaults(func=_cmd_make)
 
     p_build = sub.add_parser("build", help="materialise a named suite to disk")
     p_build.add_argument("--suite", default="mini", choices=tuple(SUITES.keys()))
-    p_build.add_argument("--out", default="./cases/mini")
+    p_build.add_argument(
+        "--out", "--output-dir",
+        dest="out",
+        default="./cases/mini",
+        help="output directory (default: ./cases/mini) — alias: --output-dir",
+    )
     p_build.set_defaults(func=_cmd_build)
 
     p_run = sub.add_parser("run", help="evaluate a model against a suite")
