@@ -208,7 +208,33 @@ def gate_answerable(
 
 
 def _loose_eq(a: str, b: str) -> bool:
-    """Looser equality for numeric answers ($1,234.56 vs 1234.56)."""
+    """Looser equality for numeric / currency answers.
+
+    Handles the common verifier-vs-expected drift modes:
+      - "$1,234.56" vs "1234.56"           — currency symbol, commas
+      - "$18,400.00" vs "$18,400"          — trailing .00 vs implicit integer
+      - "1.5 million" vs "1500000"         — different magnitudes (NOT handled)
+      - "USD 1234" vs "$1,234"             — alt currency markers
+    """
+    # Strip everything non-alphanumeric except '.', then attempt float
+    # equality. This collapses "$1,234.56" → "1234.56" and lets us
+    # compare to "1234.56" or "$1234.56" without fragile substring rules.
+    def _num(s: str) -> float | None:
+        clean = "".join(ch for ch in s if ch.isdigit() or ch == "." or ch == "-")
+        # Handle ".50" or "-." edge cases by requiring at least one digit
+        if not any(ch.isdigit() for ch in clean):
+            return None
+        try:
+            return float(clean)
+        except ValueError:
+            return None
+
+    na, nb = _num(a), _num(b)
+    if na is not None and nb is not None:
+        # Float equality with a small absolute tolerance for currency rounding
+        return abs(na - nb) < 1e-4
+
+    # Fall back to alphanumeric-only comparison for non-numeric answers
     norm = lambda s: "".join(ch for ch in s if ch.isalnum())
     return norm(a) == norm(b)
 
