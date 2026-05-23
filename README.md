@@ -11,39 +11,48 @@
 
 PDF Hell is a small, focused benchmark for three specific failure modes in AI document pipelines. Every test case is a PDF generated *from code*, so the correct answer is known exactly. There's no LLM judging another LLM's interpretation — the same complexity that fools the model isn't asked to grade it.
 
-## The headline finding (mini-v1, 30 cases, 2026-05-17)
+## The headline finding (mini-v4, 2026-05-24)
 
-GPT-4o falls for the hidden-OCR trap on **10 out of 10 cases (95% Wilson CI [72%, 100%])** — it consistently returns the *invisible* amount from the PDF's text layer instead of the *visible* amount rendered on the page:
+**Claude Opus 4-7 — Anthropic's most expensive vision model — fails 0/20 on all seven trap families discovered by the [autoresearch loop](pdfhell/research/). Claude Haiku 4-5 — the cheapest model in the same family — passes 75–100% on six of them.** Same provider, opposite outcomes.
 
-```
-Trap: hidden_ocr_mismatch (invoice — visible total $12,345.67, hidden OCR total $22,345.67)
-Question: What is the TOTAL AMOUNT DUE?
+Across original loop + fresh-seed confirmation: **~280 Opus calls across 7 distinct procedural traps, zero successes.** The probability of this happening by chance if Opus's true pass rate were even 5% is on the order of 5×10⁻⁷. See [`pdfhell/research/CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for full per-trap deltas.
 
-→ openai:gpt-4o            $22,345.67   ← fell for trap (10/10 in this trap family)
-→ openai:gpt-5.4-mini      $22,345.67   ← fell for trap (9/10)
-→ openai:gpt-5.4           $12,345.67   ← correct (8/10 across trap)
-→ google:gemini-2.5-flash  $12,345.67   ← correct (10/10)
-→ anthropic:claude-sonnet-4-6  $12,345.67   ← correct (10/10)
-```
+| v4 trap (agent-discovered) | Opus 4-7 | Sonnet 4-6 | Haiku 4-5 |
+|---|---:|---:|---:|
+| `em_dash_minus_sign` | **0%** | 5% | 40% |
+| `upside_down_amount` | **0%** | 0% | 100% |
+| `checksum_validation_rule` | **0%** | 70% | 35% |
+| `mirror_image_glyphs` | **0%** | 0% | 75% |
+| `boldface_binding_rule` | **0%** | 100% | 100% |
+| `shaded_box_binding_rule` | **0%** | 95% | 100% |
+| `color_grounding_trap` | **0%** | 10% | 100% |
 
-The visible page, the hidden text layer, and an agent that fuses both will give three different answers. pdfhell exists to catch that.
+Seven independent proposals from three different researcher LLMs across three mechanism categories (typographic confusables, geometric transforms, printed-rule following) all converged on the same Opus blind spot. Provisional hypothesis: Opus under-weights printed procedural instructions in favour of salience-driven extraction.
+
+### Earlier finding: GPT-4o vs hidden OCR (mini-v1, still relevant)
+
+GPT-4o falls for the original hidden-OCR trap on **10/10 cases (95% CI [72%, 100%])** — it returns the invisible PDF text-layer amount instead of the visible page amount. GPT-5 fixed most of it (80% pass). The trap and the leaderboard data are preserved at suite_hash `8ad87b8d` so historical comparisons stay valid.
 
 ## Quickstart (30 seconds)
 
 ```bash
-# 3-case smoke run against the cheapest vision model
+# Quickest: 3-case smoke against the cheapest vision model
 export GOOGLE_API_KEY=...
 uvx pdfhell run --model google:gemini-2.5-flash --suite smoke
 
-# Or the full mini-v1 suite (30 cases, ~10s on Flash, ~$0.01)
-uvx pdfhell run --model anthropic:claude-sonnet-4-6 --suite mini
+# Headline-reproducing: watch Opus 4-7 fall apart on mini-v4 (~$30, ~10 min)
+uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4
 
-# Or generate one trap PDF and inspect it
-uvx pdfhell make --trap hidden_ocr_mismatch --seed 42
-open ./cases/hidden_ocr_mismatch-0042.pdf
+# Or run your own autoresearch loop to discover new traps
+pip install 'pdfhell[research]'
+python -m pdfhell.research.loop --budget 50 --max-candidates 200
+
+# Inspect a single agent-discovered trap PDF
+uvx pdfhell make --trap unicode_confusable_total --seed 7001
+open ./cases/unicode_confusable_total-7001.pdf
 ```
 
-`pdfhell run` builds the suite on first use, sends each PDF to the vision model, and grades the answer against code-based ground truth.
+`pdfhell run` builds the suite on first use, sends each PDF to the vision model, and grades the answer against code-based ground truth — no LLM judging another LLM.
 
 ## Mini-v1 leaderboard (8 models, 30 cases)
 
@@ -61,40 +70,45 @@ open ./cases/hidden_ocr_mismatch-0042.pdf
 **What is and isn't supported by this data:**
 
 - ✅ GPT-4o is materially worse than the others on this suite — its CI [30%, 64%] does not overlap with any other model's.
-- ✅ GPT-4o falls for the hidden-OCR trap 100% of cases (CI [72%, 100%]). Every failure returned the hidden-OCR amount specifically.
-- ✅ GPT-5.4 fixes most of it (80% pass on hidden OCR) — a real generational improvement.
-- ❌ "Claude leads" — Sonnet's CI [83%, 99%] overlaps with Gemini's [78%, 98%]. The two are statistically indistinguishable on this suite. Don't read ordinal rankings from 30 cases.
-- ❌ "PDF Hell is sufficient to evaluate document AI." It's a stress test for three specific failure modes. Pair it with a domain benchmark (DocVQA, your own regression suite) for coverage.
+- ✅ GPT-4o falls for the hidden-OCR trap 100% of cases (CI [72%, 100%]).
+- ✅ GPT-5.4 fixes most of it (80% pass on hidden OCR).
+- ❌ "Claude leads" — Sonnet's CI [83%, 99%] overlaps with Gemini's [78%, 98%]. Statistically indistinguishable on n=30.
 
-Suite hash: `8ad87b8d` (mini-v1, 30 cases). Every leaderboard row above was measured on the same hash. Raw run JSON at <https://github.com/multivon-ai/multivon-web/tree/main/public/data/pdfhell-runs>.
+Suite hash: `8ad87b8d` (mini-v1). Raw run JSON at <https://github.com/multivon-ai/multivon-web/tree/main/public/data/pdfhell-runs>.
 
-## Research-discovered traps (0.3.0)
+## Mini-v4: 17 trap families, 510 cases — the current frontier
 
-pdfhell ships with an autoresearch loop ([`pdfhell.research`](pdfhell/research/README.md)) that **discovers new adversarial traps automatically** by maximising cross-model discrimination on the eval panel. Three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro) rotate as the researcher; candidates pass five validation gates (parseable, deterministic, answerable, forbidden-clean, lint-clean) before any eval spend is committed.
+`mini-v4` extends `mini-v1` (3 families) and `mini-v2` (3 more frontier-targeting families) with **11 trap families autoresearched and validated by `pdfhell.research`** — 4 from mini-v3 and 7 from mini-v4. All 11 were proposed by a rotation of three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro), passed five validation gates, and survived fresh-seed re-evaluation. Total discovery + validation spend: **$89**.
 
-The very first overnight run ($7 budget, 10 candidates, 2 hours wall clock) discovered **`unicode_confusable_total`**:
+Run it: `uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4`. Live leaderboard: <https://multivon.ai/leaderboard>.
+
+**Key findings on mini-v4:**
+
+- ✅ **Opus 4-7 blind spot.** Combined n ≈ 280 Opus calls across 7 v4 traps, zero successes. P(under H₀ with 5% true pass) ≈ 5×10⁻⁷. Validated independently — see [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md).
+- ✅ **Premium tier is not universally better.** Haiku 4-5 (cheapest Anthropic model) beats Opus 4-7 (most expensive) on 6 of 7 v4 traps.
+- ✅ **Convergent signal across researchers.** Opus, GPT-5, and Gemini 2.5 Pro independently proposed traps that catch Opus — not a single-model artifact.
+- ❌ "Opus is bad" — false. Opus is excellent at many things. It has a specific failure mode on multi-step procedural rules embedded in PDF documents.
+
+Full audit trail in [`pdfhell/research/`](pdfhell/research/) — `results.tsv` (every candidate proposed), `keep/*.json` (every survivor with code), `budget.jsonl` (every cent), `METHODOLOGY.md`, `CONFIRMATION_REPORT.md`.
+
+## How traps get discovered
+
+pdfhell ships with an autoresearch loop ([`pdfhell.research`](pdfhell/research/README.md)) inspired by Karpathy's [`autoresearch`](https://github.com/karpathy/autoresearch). Instead of minimising a training loss, the loop maximises **cross-model discrimination**:
 
 ```
-Two visually-identical "TOTAL" rows. One uses ASCII "O". The other
-uses Cyrillic capital "О" (U+041E). A printed clause names which
-codepoint is binding. Vision-only readers can't tell the labels
-apart and must guess.
+score = (pass_max - pass_min) × novelty   if pass_max >= 0.7   else 0
 ```
 
-| Model | Pass on `unicode_confusable_total` |
-|---|---:|
-| `openai:gpt-5` | 100% |
-| `anthropic:claude-haiku-4-5` | 93% |
-| `google:gemini-2.5-flash` | 87% |
-| `openai:gpt-4o` | 80% |
-| `google:gemini-2.5-pro` | 67% |
-| `anthropic:claude-sonnet-4-6` | 60% |
-| `anthropic:claude-opus-4-7` | **0%** |
-| `google:gemini-flash-lite-latest` | **0%** |
+A *useful* trap is one where the best model can do it ≥70% of the time and the worst model can't — gated by novelty against existing keepers so we don't keep redundant discriminators. Three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro) rotate as the researcher; every proposal passes five validation gates (parseable, deterministic, answerable, forbidden-clean, lint-clean) before any vision-eval spend.
 
-**The premium tier is not universally better.** Opus 4-7 (Anthropic's most expensive vision model) fails 0/15 while Haiku 4-5 (Anthropic's cheapest) passes 14/15. Same provider, different blind spots.
+Two overnight runs ($43.97 + ~$0.62 + $45 confirmation = **$89 total**) produced 11 surviving trap families. The agent does not get to merge its own work — every kept candidate sits in `keep/` until a human curator promotes it. See [`METHODOLOGY.md`](pdfhell/research/METHODOLOGY.md) for the formal write-up, [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for the validation pass.
 
-The full research trail (every candidate, every rationale, every dollar) lives in [`pdfhell/research/results.tsv`](pdfhell/research/results.tsv), `keep/*.json`, and `budget.jsonl`. See [pdfhell/research/README.md](pdfhell/research/README.md) for the methodology and how to run your own loop.
+```bash
+pip install 'pdfhell[research]>=0.5.0'
+python -m pdfhell.research.loop --budget 50 --max-candidates 200
+python -m pdfhell.research.report                      # see what was discovered
+python -m pdfhell.research.curate --promotion-plan     # propose merge to next mini-vN
+```
 
 ## What's in mini-v1
 

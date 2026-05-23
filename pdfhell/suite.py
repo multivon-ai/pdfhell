@@ -281,12 +281,34 @@ def mini_v4_suite() -> SuiteSpec:
     )
 
 
+def mini_v4_sample_suite() -> SuiteSpec:
+    """A 170-case sampled version of mini-v4: first 10 seeds per family.
+
+    Used for the public leaderboard at multivon.ai/leaderboard so the
+    full panel can be evaluated within budget (~$17 vs ~$100 for the
+    full 510-case suite). Reproducible: same seeds always produce the
+    same cases. The suite_hash differs from mini-v4 so leaderboard
+    consumers can verify which subset was measured.
+
+    For published benchmark comparisons that require statistical power,
+    run the full ``mini-v4`` suite (510 cases). For routine leaderboard
+    refreshes, ``mini-v4-sample`` is sufficient and 3× cheaper.
+    """
+    full = mini_v4_suite()
+    return SuiteSpec(
+        name="mini-v4-sample",
+        version="mini-v4-sample",
+        traps={family: seeds[:10] for family, seeds in full.traps.items()},
+    )
+
+
 SUITES: dict[str, SuiteSpec] = {
     "smoke": smoke_suite(),
     "mini": mini_suite(),
     "mini-v2": mini_v2_suite(),
     "mini-v3": mini_v3_suite(),
     "mini-v4": mini_v4_suite(),
+    "mini-v4-sample": mini_v4_sample_suite(),
 }
 
 
