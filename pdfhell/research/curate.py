@@ -210,6 +210,62 @@ def _verify_consistency(keep_dir: Path) -> int:
     return bad
 
 
+def _preview_keeper(candidate_id: str, *, n_pdfs: int = 3, out_dir: Path | None = None) -> int:
+    """Materialise a few PDFs from a kept candidate so a reviewer can look.
+
+    No API calls — runs the keeper's generate() function locally. The
+    PDFs land in ``out_dir`` (default: a tempdir under /tmp).
+    Returns 0 on success, non-zero if the candidate can't be found or
+    its generator raises.
+    """
+    keeper = _load_keeper(candidate_id)
+    if keeper is None:
+        print(f"no such keeper: {candidate_id}", file=sys.stderr)
+        return 1
+    trap_family = keeper["trap_family"]
+    py = KEEP_DIR / f"{trap_family}.py"
+    if not py.exists():
+        print(f"no source file at {py}", file=sys.stderr)
+        return 1
+
+    if out_dir is None:
+        out_dir = Path(tempfile.mkdtemp(prefix=f"pdfhell-preview-{trap_family}-"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Temporarily register via the regular registry so build_suite works.
+    runtime_target = Path(__file__).resolve().parents[1] / "generators" / f"{trap_family}.py"
+    existing = runtime_target.read_bytes() if runtime_target.exists() else None
+    runtime_target.write_text(keeper["code"], encoding="utf-8")
+    try:
+        from pdfhell.suite import SuiteSpec, build_suite
+        from .registry import temporary_register
+
+        seeds = list(range(99_000, 99_000 + n_pdfs))  # disjoint from suite ranges
+        with temporary_register(trap_family, runtime_target):
+            spec = SuiteSpec(
+                name=f"preview-{trap_family}",
+                version=f"preview-{trap_family}",
+                traps={trap_family: seeds},
+            )
+            cases = build_suite(spec, out_dir)
+    finally:
+        if existing is not None:
+            runtime_target.write_bytes(existing)
+        else:
+            runtime_target.unlink(missing_ok=True)
+
+    print(f"  wrote {len(cases)} preview PDFs to {out_dir}")
+    for c in cases:
+        pdf_path = out_dir / c.pdf_path
+        print(f"    {pdf_path}")
+        print(f"      question:  {c.question[:120]}")
+        print(f"      expected:  {c.expected_answer!r}")
+        if c.forbidden_answers:
+            print(f"      forbidden: {c.forbidden_answers}")
+    print(f"\n  open {out_dir}/")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Curate research-discovered traps into mini-vN.",
@@ -222,6 +278,12 @@ def main() -> int:
                         help="Emit a markdown promotion plan for all keepers.")
     parser.add_argument("--verify", action="store_true",
                         help="Check internal consistency of keep/ (no API calls).")
+    parser.add_argument("--preview",
+                        help="Materialise a few PDFs from a keeper so you can eyeball them (no API calls).")
+    parser.add_argument("--preview-n", type=int, default=3,
+                        help="How many PDFs to write in --preview mode (default 3).")
+    parser.add_argument("--preview-dir", type=Path, default=None,
+                        help="Where to write previews (default: a tempdir).")
     parser.add_argument("--budget-cap", type=float, default=15.0,
                         help="USD cap across all confirmation runs (default $15).")
     parser.add_argument("--cases", type=int, default=20,
@@ -231,6 +293,9 @@ def main() -> int:
     if args.verify:
         bad = _verify_consistency(KEEP_DIR)
         return 1 if bad > 0 else 0
+
+    if args.preview:
+        return _preview_keeper(args.preview, n_pdfs=args.preview_n, out_dir=args.preview_dir)
 
     if args.promotion_plan:
         print(_promotion_plan(list(_iter_keepers())))
