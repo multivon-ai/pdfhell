@@ -232,6 +232,7 @@ def run(
                 reference_py_path=REFERENCE_PY,
                 results_tsv_path=RESULTS_TSV,
                 tried_names=tried_names,
+                keep_dir=KEEP_DIR,
             )
         except Exception as exc:
             print(f"  [propose] crashed: {exc}")
@@ -426,6 +427,28 @@ def run(
     if RESULTS_TSV.exists():
         n_rows = sum(1 for _ in RESULTS_TSV.open("r", encoding="utf-8")) - 1
         print(f"[loop] results.tsv: {n_rows} candidate attempts")
+
+    # Inline mini-report so the operator doesn't need a second command
+    # to see what was discovered. We import lazily so loop.py stays
+    # importable in environments that don't need the report stack.
+    try:
+        from .report import build_summary
+        summary = build_summary()
+        print(f"\n[loop] ─── session summary ───")
+        if summary["theme_convergence"]:
+            print("[loop] convergent themes (≥2 researchers, same direction):")
+            for theme, info in summary["theme_convergence"].items():
+                print(f"  {theme:22s} {info['attempts']:>2d} attempts by {info['distinct_researchers']} researchers")
+        if summary["keepers"]:
+            print(f"\n[loop] top keepers (ranked by score):")
+            for k in summary["keepers"][:5]:
+                print(f"  {k['trap_family']:36s} score={k['score']:.2f}  by {k['researcher_model']}")
+        print(f"\n[loop] for full breakdown: python -m pdfhell.research.report")
+        print(f"[loop] for promotion plan: python -m pdfhell.research.curate --promotion-plan")
+    except Exception as exc:
+        # Don't let the summary code crash the loop's exit path.
+        print(f"[loop] (summary unavailable: {exc})")
+
     return 0
 
 

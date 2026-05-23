@@ -109,6 +109,10 @@ _USER_PROMPT_TEMPLATE = """## program.md
 
 {recent_tsv}
 
+## Prior kept candidates (positive examples — these scored well)
+
+{kept_examples}
+
 ## Trap names already attempted this session — DO NOT RE-USE these names
 
 {tried_names}
@@ -117,7 +121,11 @@ _USER_PROMPT_TEMPLATE = """## program.md
 
 Propose ONE candidate. Output JSON only, no prose. Pick a trap_family name that doesn't appear in the "already attempted" list above, and doesn't collide with existing v1/v2 trap names (hidden_ocr_mismatch, footnote_override, split_table_across_pages, composite_trap, scale_dependent_rendering, cross_page_coreference).
 
-If `results.tsv` is empty, this is the first run — pick a high-novelty direction (the program.md "hints" section lists some). If recent rows show a pattern that's *working* (status=keep with high spread), feel free to extend it with a different mechanism that targets the same model blind spot. If a pattern is *failing* repeatedly (multiple revert_probe or gate_fail rows for the same family), abandon it.
+Strategic guidance:
+- If `results.tsv` is empty and there are no kept examples, this is the first run — pick a high-novelty direction (the program.md "hints" section lists some)
+- If kept examples exist, study what made them work — but DON'T duplicate the mechanism. A trap that discriminates the *same models* via a *different mechanism* is fine; a trap that just re-implements an existing mechanism is rejected at score (novelty=0)
+- If recent rows show repeated revert_probe or gate_fail for similar mechanisms (look at the rationale column), abandon that direction — the eval panel already handles it or the gates trip
+- Many models have the *same* blind spot. Finding novel mechanisms that defeat models OTHER than Opus-4-7 + Gemini-Flash-Lite is more valuable than yet-another-Opus-defeater
 
 JSON proposal:"""
 
@@ -129,12 +137,18 @@ def build_prompt(
     reference_py_path: Path,
     results_tsv_path: Path,
     tried_names: list[str] | None = None,
+    keep_dir: Path | None = None,
+    max_kept_examples: int = 2,
 ) -> tuple[str, str]:
     """Return (system_prompt, user_prompt). Both are pre-formatted.
 
     ``tried_names`` is the set of trap_family names already attempted
     in the current session. Pass it explicitly so the agent doesn't
     re-propose a name that's already been evaluated (waste of spend).
+
+    ``keep_dir``: directory of kept candidate JSONs. If provided, the
+    top-scoring kept candidates are included as positive examples in
+    the prompt so the agent can calibrate on what "good" looks like.
     """
     program_md = program_md_path.read_text(encoding="utf-8") if program_md_path.exists() else ""
     common_py = common_py_path.read_text(encoding="utf-8") if common_py_path.exists() else ""
@@ -150,12 +164,46 @@ def build_prompt(
     else:
         tried_block = "  (none yet — this is the first proposal this session)"
 
+    # Pull in top-scoring kept candidates as positive examples. Cap at
+    # max_kept_examples and trim code blocks so we don't blow the
+    # context budget — researchers are seeing program.md + _common.py +
+    # a full reference already, plus recent_tsv. Aim for ~3K extra tokens
+    # for kept examples max.
+    kept_examples = "(no prior keepers — first run or none have scored above 0)"
+    if keep_dir is not None and keep_dir.exists():
+        keepers: list[dict] = []
+        for f in sorted(keep_dir.glob("*.json")):
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+                keepers.append(d)
+            except (json.JSONDecodeError, OSError):
+                continue
+        keepers.sort(key=lambda d: d.get("score", 0), reverse=True)
+        if keepers:
+            blocks: list[str] = []
+            for k in keepers[:max_kept_examples]:
+                spread = k.get("full_result", {}).get("spread", 0)
+                novelty = k.get("novelty", 0)
+                per_model = k.get("full_result", {}).get("per_model_pass", {})
+                code = k.get("code", "")
+                if len(code) > 5000:
+                    code = code[:5000] + "\n# ...truncated for context...\n"
+                blocks.append(
+                    f"### {k.get('trap_family')}  (score={k.get('score', 0):.2f}, "
+                    f"spread={spread:.2f}, novelty={novelty:.2f})\n"
+                    f"Rationale: {k.get('rationale', '')[:300]}\n"
+                    f"Per-model pass: {json.dumps(per_model, sort_keys=True)}\n"
+                    f"```python\n{code}\n```"
+                )
+            kept_examples = "\n\n".join(blocks)
+
     user = _USER_PROMPT_TEMPLATE.format(
         program_md=program_md,
         common_py=common_py,
         reference_py=reference_py,
         recent_tsv=recent,
         tried_names=tried_block,
+        kept_examples=kept_examples,
     )
     return _SYSTEM_PROMPT, user
 
@@ -337,6 +385,7 @@ def propose(
     results_tsv_path: Path,
     max_retries: int = 3,
     tried_names: list[str] | None = None,
+    keep_dir: Path | None = None,
 ) -> Proposal | None:
     """Get one proposal from the next researcher in rotation.
 
@@ -354,6 +403,7 @@ def propose(
         reference_py_path=reference_py_path,
         results_tsv_path=results_tsv_path,
         tried_names=tried_names,
+        keep_dir=keep_dir,
     )
     tried_set = set(tried_names or [])
     for _ in range(max_retries):
