@@ -19,8 +19,6 @@ specific failure mode the trap was designed to catch (the hidden one).
 """
 from __future__ import annotations
 
-import random
-
 from reportlab.pdfgen import canvas
 
 from ..case import HellCase
