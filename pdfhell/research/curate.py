@@ -168,6 +168,48 @@ def _promotion_plan(keepers: list[dict]) -> str:
     return "\n".join(out)
 
 
+def _verify_consistency(keep_dir: Path) -> int:
+    """Check every keep/<id>.json against its keep/<trap_family>.py.
+
+    Returns the count of inconsistencies found. Prints details to
+    stdout. Used by --verify before --promotion-plan or --confirm-all
+    so the curator catches data drift before publishing.
+    """
+    bad = 0
+    json_files = sorted(keep_dir.glob("*.json"))
+    if not json_files:
+        print("(no keepers to verify)")
+        return 0
+    print(f"verifying {len(json_files)} keeper(s)...")
+    for f in json_files:
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            print(f"  ✗ {f.name}: malformed JSON: {exc}")
+            bad += 1
+            continue
+        trap = d.get("trap_family")
+        code_in_json = d.get("code", "")
+        if not trap:
+            print(f"  ✗ {f.name}: missing trap_family")
+            bad += 1
+            continue
+        py = keep_dir / f"{trap}.py"
+        if not py.exists():
+            print(f"  ✗ {f.name}: no matching {py.name} on disk")
+            bad += 1
+            continue
+        code_on_disk = py.read_text(encoding="utf-8")
+        # Allow whitespace-only differences (trailing newlines etc.)
+        if code_in_json.strip() != code_on_disk.strip():
+            print(f"  ✗ {f.name}: code in JSON differs from {py.name} on disk")
+            bad += 1
+            continue
+        print(f"  OK {trap:36s} (from {f.name})")
+    print(f"\n{len(json_files) - bad}/{len(json_files)} keepers consistent")
+    return bad
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Curate research-discovered traps into mini-vN.",
@@ -178,11 +220,17 @@ def main() -> int:
                         help="Confirmation eval for every keeper (costs ~$3 each).")
     parser.add_argument("--promotion-plan", action="store_true",
                         help="Emit a markdown promotion plan for all keepers.")
+    parser.add_argument("--verify", action="store_true",
+                        help="Check internal consistency of keep/ (no API calls).")
     parser.add_argument("--budget-cap", type=float, default=15.0,
                         help="USD cap across all confirmation runs (default $15).")
     parser.add_argument("--cases", type=int, default=20,
                         help="Cases per confirmation eval (default 20).")
     args = parser.parse_args()
+
+    if args.verify:
+        bad = _verify_consistency(KEEP_DIR)
+        return 1 if bad > 0 else 0
 
     if args.promotion_plan:
         print(_promotion_plan(list(_iter_keepers())))
