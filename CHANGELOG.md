@@ -2,6 +2,60 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] — 2026-05-23
+
+### Added — `mini-v4`: seven more agent-discovered traps + an emergent finding
+
+The second autoresearch loop ran $43.97 / 115 candidates / ~3 hours wall clock and produced **seven additional trap families** (on top of mini-v3's four). All proposed by the same Opus 4-7 / GPT-5 / Gemini 2.5 Pro rotation; all passed the five validation gates; all defeat at least one model on the 8-model panel at 0%.
+
+### The emergent finding
+
+**Claude Opus 4-7 fails 0% on every single one of the seven new traps.** Haiku 4-5 — Anthropic's cheapest model — passes 100% on most of them.
+
+| Trap | Opus 4-7 | Sonnet 4-6 | Haiku 4-5 |
+|---|---:|---:|---:|
+| `em_dash_minus_sign` | **0%** | 5% | 40% |
+| `upside_down_amount` | **0%** | 0% | 100% |
+| `checksum_validation_rule` | **0%** | 70% | 35% |
+| `mirror_image_glyphs` | **0%** | 0% | 75% |
+| `boldface_binding_rule` | **0%** | 100% | 100% |
+| `shaded_box_binding_rule` | **0%** | 95% | 100% |
+| `color_grounding_trap` | **0%** | 10% | 100% |
+
+This is not noise — seven independently-proposed traps, three different researcher models, three different mechanism categories (typographic confusables, geometric transforms, rule-following), all converge on the same pattern. The premium Anthropic vision model has a systematic blind spot the cheaper sibling does not share. *Provisional hypothesis: Opus's longer thinking pass under-weights "follow the printed rule" instructions in favour of salience-driven extraction.* Worth deeper investigation.
+
+### The seven new families
+
+- **`em_dash_minus_sign`** (Opus 4-7) — em/en-dash (—, –) used where minus would be; a printed clause names which dash glyph binds. Anthropic-wide failure; OpenAI + Gemini-Pro fine.
+- **`upside_down_amount`** (Opus 4-7) — 180-degree rotated binding amount in a labelled box. Opus + Sonnet + Lite all 0%; Haiku 100%.
+- **`checksum_validation_rule`** (Opus 4-7) — printed rule says "pick the candidate whose digit-sum mod K equals N". Tests rule-following vs salience. Opus + Lite + GPT-4o all weak.
+- **`mirror_image_glyphs`** (Opus 4-7) — horizontally mirrored glyphs in the binding amount. **5/8 models at 0%** — only OpenAI passes cleanly.
+- **`boldface_binding_rule`** (GPT-5) — printed rule: "use the boldface amount". Visual property + rule. Opus + Lite at 0%.
+- **`shaded_box_binding_rule`** (GPT-5) — printed rule: "use the amount in the shaded box". Layout property + rule. Opus 0%, rest 95-100%.
+- **`color_grounding_trap`** (Gemini 2.5 Pro) — printed rule: "use the red amount". Visual semantic grounding. Opus 0%, broad Anthropic + Gemini struggle.
+
+### `mini-v4` suite
+
+`mini-v4` = `mini-v3` (10 families × 30 = 300 cases) + 7 new families × 30 = **510 cases total**. `mini-v1`, `mini-v2`, `mini-v3` `suite_hash` are unchanged — historical leaderboard rows remain comparable.
+
+```bash
+uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4
+```
+
+### Research artifacts
+
+Full audit trail at [`pdfhell/research/`](pdfhell/research/):
+- `results.tsv` — 115 candidates explored (43 in this loop run + 72 prior)
+- `keep/*.json` — all 11 survivors with code + per-model results + researcher rationale
+- `budget.jsonl` — $43.97 in committed spend, every API call accounted for
+- `METHODOLOGY.md` — formal methodology write-up
+
+### Compatibility
+
+- All prior `suite_hash` unchanged
+- All CLI commands, output schemas, audit-pack format unchanged
+- `pdfhell.runner`, `pdfhell.scorer`, `pdfhell.case` unchanged
+
 ## [0.4.0] — 2026-05-23
 
 ### Added — `mini-v3`: agent-discovered trap families

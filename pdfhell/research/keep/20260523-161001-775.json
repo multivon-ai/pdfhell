@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-161001-775",
+  "trap_family": "checksum_validation_rule",
+  "researcher_model": "anthropic:claude-opus-4-7",
+  "rationale": "Pure arithmetic-rule-following trap: select between two candidates by digit-sum-mod-K. No Unicode, no vision tricks, no decoding. Orthogonal to all prior attempts \u2014 sum_reconciliation gate-failed on forbidden_clean (verifiers quoted decoy in sum), but here the binding amount is a single labeled value, not derived by addition. Tests whether models actually execute the printed rule vs grab salience. Expect Haiku/Flash-lite/4o to skip the check; GPT-5/Opus/Sonnet/Pro to compute it.",
+  "action": "create_generator",
+  "score": 0.0545,
+  "novelty": 0.0545,
+  "probe_result": {
+    "trap_family": "checksum_validation_rule",
+    "n_cases": 10,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 0.7,
+      "google:gemini-2.5-flash": 1.0
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.09,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.7,
+    "spread": 0.3,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "checksum_validation_rule",
+    "n_cases": 20,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "openai:gpt-4o": 0.3,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-haiku-4-5": 0.35,
+      "anthropic:claude-sonnet-4-6": 0.7,
+      "openai:gpt-5": 1.0,
+      "google:gemini-2.5-flash": 1.0,
+      "google:gemini-2.5-pro": 1.0
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "openai:gpt-4o": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-5": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.0
+    },
+    "cost_usd": 3.92,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "\"\"\"Trap family: checksum-validated invoice number selection.\n\nThe page shows two candidate invoice numbers (e.g. INV-A and INV-B) with\ntheir associated amounts. A clause states that the binding invoice is\nthe one whose numeric digits sum to a multiple of a small integer K\n(e.g. K=7). The model must (a) extract digits from each invoice number,\n(b) compute the digit-sum mod K, (c) identify which invoice satisfies\nthe rule, (d) report THAT invoice's amount.\n\nDistinct from prior decode traps (octal/hex/base64/morse) \u2014 there's no\nencoding to decode. The numbers are plain ASCII. Distinct from\nsum_reconciliation (which gate-failed on forbidden_clean) because the\nbinding amount appears as a single labeled value, not a sum the\nverifier might recompute and quote.\n\nWeaker models grab the more salient/first amount or skip the arithmetic\ncheck. Strong reasoners actually perform the digit-sum check.\n\"\"\"\nfrom __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Cobalt Ridge Industrial Co.\",\n    \"Sundial Forge Manufacturing\",\n    \"Briarwood Analytics LLC\",\n    \"Northpoint Marine Supply\",\n    \"Veridian Crop Sciences Inc.\",\n    \"Halcyon Press Holdings\",\n]\n\n\ndef _digit_sum(s: str) -> int:\n    return sum(int(c) for c in s if c.isdigit())\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n    vendor = rng.choice(_VENDORS)\n    K = rng.choice([7, 9, 11])\n\n    # Generate two invoice numbers: exactly one has digit-sum divisible by K.\n    def gen_inv(divisible: bool) -> str:\n        for _ in range(2000):\n            n = rng.randint(100000, 999999)\n            if (_digit_sum(str(n)) % K == 0) == divisible:\n                return f\"INV-{n}\"\n        raise RuntimeError(\"unreachable\")\n\n    binding_inv = gen_inv(True)\n    decoy_inv = gen_inv(False)\n\n    binding_amount = round(rng.uniform(8000, 25000), 2)\n    decoy_amount = round(binding_amount * rng.uniform(1.4, 2.2), 2)\n    # Randomize which is larger to avoid \"pick the bigger one\" heuristic.\n    if rng.random() < 0.5:\n        binding_amount, decoy_amount = decoy_amount, binding_amount\n\n    binding_str = C.fmt_money(binding_amount)\n    decoy_str = C.fmt_money(decoy_amount)\n\n    binding_on_top = rng.random() < 0.5\n\n    case_id = f\"checksum_validation_rule-{seed:04d}\"\n    question = (\n        f\"You are processing invoices from {vendor}. Per the validation rule \"\n        \"printed on the document, what is the AMOUNT DUE on the binding \"\n        \"invoice? Respond with only the amount including currency symbol, \"\n        \"no other text.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE BATCH\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, \"Terms: Net 30\")\n\n        C.draw_paragraph(\n            c,\n            \"Validation rule: this batch contains two candidate invoice records. \"\n            f\"The BINDING invoice is the one whose numeric digits (ignoring the \"\n            f\"'INV-' prefix and any hyphens) sum to a value that is evenly \"\n            f\"divisible by {K}. The other record is a superseded draft retained \"\n            \"for audit and must not be paid. Apply this rule strictly when \"\n            \"identifying the AMOUNT DUE.\",\n            72, 650,\n            font=C.FontSpec(size=10),\n        )\n\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(72, 560, \"INVOICE NO.\")\n        c.drawRightString(500, 560, \"AMOUNT DUE\")\n\n        top_inv, top_amt = (\n            (binding_inv, binding_str) if binding_on_top else (decoy_inv, decoy_str)\n        )\n        bot_inv, bot_amt = (\n            (decoy_inv, decoy_str) if binding_on_top else (binding_inv, binding_str)\n        )\n\n        c.setFont(\"Helvetica\", 12)\n        y = 535\n        c.drawString(72, y, top_inv)\n        c.drawRightString(500, y, top_amt)\n        y -= 22\n        c.drawString(72, y, bot_inv)\n        c.drawRightString(500, y, bot_amt)\n\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"checksum_validation_rule\",\n        seed=seed,\n        question=question,\n        expected_answer=binding_str,\n        forbidden_answers=[decoy_str],\n        metadata={\n            \"vendor\": vendor,\n            \"K\": K,\n            \"binding_inv\": binding_inv,\n            \"decoy_inv\": decoy_inv,\n            \"binding_digit_sum\": _digit_sum(binding_inv),\n            \"decoy_digit_sum\": _digit_sum(decoy_inv),\n            \"binding_amount\": binding_amount,\n            \"decoy_amount\": decoy_amount,\n            \"expected_failure_mode\": (\n                \"Weaker models skip the digit-sum arithmetic check and pick \"\n                \"the more salient/first/larger invoice. Strong reasoners \"\n                \"compute digit sums mod K and select correctly.\"\n            ),\n        },\n    )\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T16:11:59+00:00"
+}

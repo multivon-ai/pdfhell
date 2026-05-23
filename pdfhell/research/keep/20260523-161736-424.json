@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-161736-424",
+  "trap_family": "upside_down_amount",
+  "researcher_model": "anthropic:claude-opus-4-7",
+  "rationale": "Pure geometric transform: binding amount rendered with a 180-degree rotated CTM inside a clearly labeled box. Text stream has unmodified ASCII digits so text-only verifiers and gates pass cleanly. Vision models tend to either skip rotated regions, hallucinate digits when reading inverted glyphs, or anchor on the upright decoy. Orthogonal to Unicode/encoding/small-print/overlay traps. A human can tilt the page; the question is fair. Expect Haiku/Flash-lite/4o to fail; stronger models with better ",
+  "action": "create_generator",
+  "score": 0.0733,
+  "novelty": 0.0733,
+  "probe_result": {
+    "trap_family": "upside_down_amount",
+    "n_cases": 10,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-2.5-flash": 0.5
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.09,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.5,
+    "spread": 0.5,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "upside_down_amount",
+    "n_cases": 20,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 1.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-5": 1.0,
+      "google:gemini-2.5-flash": 0.25,
+      "google:gemini-2.5-pro": 0.65
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-5": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.0
+    },
+    "cost_usd": 3.92,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "\"\"\"Trap family: upside-down (180-degree rotated) binding amount.\n\nThe invoice shows a large prominent decoy TOTAL drawn normally, and the\nbinding amount drawn upside-down (rotated 180 degrees) in a clearly\nlabeled 'BINDING AMOUNT' box. A printed clause states that the binding\namount is the one inside the box labeled BINDING AMOUNT.\n\nA human reader can tilt the page (or their head) and read the rotated\ntext. A text-extraction pipeline reads the vector text trivially\nregardless of rotation. But vision-language models that rasterize the\npage tend to either (a) skip rotated text entirely, (b) hallucinate\ndigits when trying to read upside-down glyphs, or (c) anchor on the\nupright decoy. The codepoints in the text stream are unchanged ASCII\ndigits \u2014 no Unicode trickery \u2014 so text-only verifiers solve it cleanly.\n\nNovel vs prior traps: not Unicode confusable, not small print, not\noverlay, not encoding. Pure geometric transformation of vector glyphs.\nDistinct from `rotated_binding_clause` (which rotated a clause, not the\namount itself, and presumably reverted).\n\"\"\"\nfrom __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Cobalt Harbor Trading Co.\",\n    \"Westmoor Industrial Supply\",\n    \"Juniper Ridge Analytics Inc.\",\n    \"Ashford Marine Services Ltd.\",\n    \"Stellaris Components LLC\",\n    \"Birchwood Procurement Group\",\n]\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n\n    vendor = rng.choice(_VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n    po_no = f\"PO-{rng.randint(10000, 99999)}\"\n\n    decoy_total = round(rng.uniform(9000, 28000), 2)\n    real_total = round(decoy_total * rng.uniform(1.4, 2.3), 2)\n\n    decoy_str = C.fmt_money(decoy_total)\n    real_str = C.fmt_money(real_total)\n\n    case_id = f\"upside_down_amount-{seed:04d}\"\n    question = (\n        f\"You are processing invoice {invoice_no} from {vendor}. \"\n        \"According to the disambiguation clause printed on the invoice, \"\n        \"what is the binding amount owed? Respond with only the amount \"\n        \"including currency symbol, no other text.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 670, f\"PO Reference: {po_no}\")\n        c.drawString(72, 655, \"Terms: Net 30\")\n\n        # Disambiguation clause \u2014 plain text, easy to read.\n        C.draw_paragraph(\n            c,\n            \"Disambiguation clause: this invoice contains a PRELIMINARY TOTAL \"\n            \"shown in the standard upright orientation for reference only. The \"\n            \"BINDING AMOUNT \u2014 the figure the customer is legally obligated to \"\n            \"pay \u2014 is printed inside the bordered box labeled 'BINDING AMOUNT' \"\n            \"below, rotated 180 degrees per our document-security convention. \"\n            \"In case of any discrepancy, the BINDING AMOUNT governs.\",\n            72, 620,\n            font=C.FontSpec(size=10),\n        )\n\n        # Decoy preliminary total, upright and prominent.\n        c.setFont(\"Helvetica-Bold\", 12)\n        c.drawString(72, 520, \"PRELIMINARY TOTAL (reference only):\")\n        c.setFont(\"Helvetica-Bold\", 18)\n        c.drawRightString(500, 500, decoy_str)\n\n        # Binding amount box, drawn upside-down.\n        box_x, box_y, box_w, box_h = 180, 280, 250, 90\n        c.setLineWidth(1.2)\n        c.rect(box_x, box_y, box_w, box_h)\n\n        # Draw the label and the real amount rotated 180 degrees.\n        # We translate to the box's far corner and rotate 180, so text\n        # drawn at (0,0) relative-frame appears upside-down inside the\n        # box from the viewer's perspective.\n        c.saveState()\n        # Translate to top-right of box, then rotate 180.\n        c.translate(box_x + box_w, box_y + box_h)\n        c.rotate(180)\n        # Now (0,0) is the bottom-left of an inverted frame.\n        c.setFont(\"Helvetica-Bold\", 11)\n        c.drawString(12, box_h - 22, \"BINDING AMOUNT\")\n        c.setFont(\"Helvetica-Bold\", 20)\n        c.drawString(12, box_h - 60, real_str)\n        c.restoreState()\n\n        c.setFont(\"Helvetica-Oblique\", 9)\n        c.drawString(72, 230, \"(Box contents rotated 180 degrees per security convention \u2014 see clause above.)\")\n\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    # Sanity: byte-determinism is enforced by canvas_to_bytes(invariant=True).\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"upside_down_amount\",\n        seed=seed,\n        question=question,\n        expected_answer=real_str,\n        forbidden_answers=[decoy_str],\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"po_no\": po_no,\n            \"decoy_total\": decoy_total,\n            \"real_total\": real_total,\n            \"expected_failure_mode\": (\n                \"Vision models skip or misread the 180-degree rotated text in \"\n                \"the BINDING AMOUNT box and default to the upright decoy. \"\n                \"Text-extraction pipelines read the rotated glyphs as normal \"\n                \"ASCII because the codepoints in the content stream are \"\n                \"unchanged \u2014 only the CTM is rotated.\"\n            ),\n        },\n    )\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T16:19:35+00:00"
+}

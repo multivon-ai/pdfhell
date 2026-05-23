@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-165014-001",
+  "trap_family": "mirror_image_glyphs",
+  "researcher_model": "anthropic:claude-opus-4-7",
+  "rationale": "Novel geometric transform: horizontal mirror via negative-x CTM scale. Distinct from upside_down (180\u00b0) and vertical (90\u00b0) rotation traps already kept/tried, because no digit glyph is left-right symmetric in Helvetica (unlike 0/1/8 under 180\u00b0). The text stream stays ASCII-clean, so gates pass via invisible redundancy. Expect Haiku/Flash-Lite/4o to grab the upright decoy or hallucinate mirrored digits; GPT-5/Sonnet/Pro to follow the clause + recover via reasoning.",
+  "action": "create_generator",
+  "score": 0.0478,
+  "novelty": 0.0478,
+  "probe_result": {
+    "trap_family": "mirror_image_glyphs",
+    "n_cases": 10,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.09,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "mirror_image_glyphs",
+    "n_cases": 20,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.75,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-4o": 1.0,
+      "openai:gpt-5": 1.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.0
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-4o": 0.0,
+      "openai:gpt-5": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.75
+    },
+    "cost_usd": 3.92,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "\"\"\"Trap family: horizontally mirrored amount glyphs.\n\nThe binding amount is rendered with a horizontal flip (mirror image)\nvia a negative-x CTM scale. The underlying text stream contains the\ncorrect ASCII digits in correct order, so text extraction reads it\nperfectly. A human can hold a mirror (or read the clause and use the\ninvisible-text fallback) but vision models tend to either skip the\nmirrored region, hallucinate digits, or report the visually-salient\nupright decoy.\n\nDistinct from upside_down_amount (180\u00b0 rotation \u2014 digits like 0,1,8 are\nsymmetric so easier to recover) and from vertically_rendered_amount\n(90\u00b0 rotation). A pure horizontal mirror breaks digit recognition for\nALL digits (2,3,4,5,6,7,9) since none are horizontally symmetric in\nstandard typefaces.\n\"\"\"\nfrom __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Cobalt Ridge Industries Inc.\",\n    \"Sunwell Marine Services LLC\",\n    \"Drayton & Pike Consulting Ltd.\",\n    \"Halberd Pacific Trading Co.\",\n    \"Westmark Surgical Supply Corp.\",\n    \"Orchard Lane Software Group\",\n]\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n    vendor = rng.choice(_VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n\n    decoy_total = round(rng.uniform(5000, 18000), 2)\n    real_total = round(decoy_total * rng.uniform(1.6, 2.8), 2)\n\n    decoy_str = C.fmt_money(decoy_total)\n    real_str = C.fmt_money(real_total)\n\n    case_id = f\"mirror_image_glyphs-{seed:04d}\"\n    question = (\n        f\"You are processing invoice {invoice_no} from {vendor}. \"\n        \"Per the rendering-convention clause printed on the invoice, what is the \"\n        \"BINDING AMOUNT DUE? Respond with only the amount including currency \"\n        \"symbol, no other text.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 670, \"Terms: Net 30\")\n\n        # Rendering convention clause.\n        C.draw_paragraph(\n            c,\n            \"Rendering convention: this invoice is issued under our updated \"\n            \"anti-tampering policy. The PRELIMINARY TOTAL shown in upright \"\n            \"type is a draft figure retained for audit reference only. The \"\n            \"BINDING AMOUNT DUE is rendered as a horizontally-mirrored \"\n            \"(left-right flipped) image of the digits in the box below, and \"\n            \"that figure supersedes all other totals on this page. Read the \"\n            \"mirrored figure by reflection; the numeric value (not its visual \"\n            \"orientation) is what the customer owes.\",\n            72, 635,\n            font=C.FontSpec(size=10),\n        )\n\n        # Decoy upright preliminary total.\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(72, 530, \"PRELIMINARY TOTAL (draft, non-binding):\")\n        c.setFont(\"Helvetica-Bold\", 18)\n        c.drawRightString(500, 510, decoy_str)\n\n        # Binding box with mirrored amount.\n        box_x, box_y, box_w, box_h = 130, 380, 350, 80\n        c.setLineWidth(1.2)\n        c.rect(box_x, box_y, box_w, box_h)\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(box_x + 8, box_y + box_h - 16, \"BINDING AMOUNT DUE (mirrored):\")\n\n        # Render the real total horizontally mirrored.\n        # We use a CTM with negative x-scale around the centre of the box.\n        center_x = box_x + box_w / 2\n        baseline_y = box_y + 20\n        c.saveState()\n        # Translate to center, flip x, translate back.\n        c.translate(center_x, 0)\n        c.scale(-1, 1)\n        c.translate(-center_x, 0)\n        c.setFont(\"Helvetica-Bold\", 22)\n        # drawCentredString puts the text centred at center_x; under the\n        # flipped CTM, the underlying text stream still contains the\n        # correct ASCII digits in correct order \u2014 text extraction reads\n        # real_str directly. Only the rasterised glyphs are mirrored.\n        c.drawCentredString(center_x, baseline_y, real_str)\n        c.restoreState()\n\n        # Invisible redundancy so text-only verifiers pass cleanly.\n        C.draw_invisible_text(\n            c,\n            f\"Binding amount due (machine-readable): {real_str}.\",\n            72, 300, size=10,\n        )\n\n        # Filler / footer.\n        C.draw_paragraph(\n            c,\n            \"Wire instructions on request. Disputes must be raised in writing \"\n            \"within 10 business days of invoice date. Reference the invoice \"\n            \"number on all correspondence.\",\n            72, 260, font=C.FontSpec(size=10),\n        )\n\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"mirror_image_glyphs\",\n        seed=seed,\n        question=question,\n        expected_answer=real_str,\n        forbidden_answers=[decoy_str],\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"decoy_total\": decoy_total,\n            \"real_total\": real_total,\n            \"expected_failure_mode\": (\n                \"Vision-anchored models cannot read horizontally-mirrored \"\n                \"digit glyphs (no digit is left-right symmetric in Helvetica) \"\n                \"and fall back to the upright preliminary decoy. Text-stream \"\n                \"readers and the invisible-text fallback recover the binding \"\n                \"amount trivially.\"\n            ),\n        },\n    )\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T16:53:46+00:00"
+}

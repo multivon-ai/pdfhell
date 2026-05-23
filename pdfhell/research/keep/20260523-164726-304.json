@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-164726-304",
+  "trap_family": "boldface_binding_rule",
+  "researcher_model": "openai:gpt-5",
+  "rationale": "Targets visual-attribute grounding: distinguishing bold vs regular weight. Many VLMs latch onto the largest, most salient number and ignore typographic weight. This differs from color/underline/font-family traps tried: weight detection is a separate cue. Invisible [bold]/[regular] tags ensure text-only verifiers pass. Expect Haiku/Flash to pick the big non-bold decoy; stronger models follow the boldface rule.",
+  "action": "create_generator",
+  "score": 0.0416,
+  "novelty": 0.0416,
+  "probe_result": {
+    "trap_family": "boldface_binding_rule",
+    "n_cases": 10,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-2.5-flash": 0.5
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.09,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.5,
+    "spread": 0.5,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "boldface_binding_rule",
+    "n_cases": 20,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-sonnet-4-6": 1.0,
+      "openai:gpt-4o": 1.0,
+      "openai:gpt-5": 1.0,
+      "google:gemini-2.5-flash": 0.5,
+      "google:gemini-2.5-pro": 0.5
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-4o": 0.0,
+      "openai:gpt-5": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.0
+    },
+    "cost_usd": 3.92,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "from __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Northwind Robotics Ltd.\",\n    \"Sablefin Capital Group\",\n    \"Greyloft Avionics Inc.\",\n    \"Pinecrest Materials Co.\",\n    \"Hartwell Biosciences PLC\",\n    \"Ironvale Logistics LLC\",\n]\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n\n    vendor = rng.choice(_VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n\n    # Binding vs decoy: visually, the decoy is larger (salient) but non-bold;\n    # the binding amount is bold but smaller. Clause says bold binds.\n    binding_amount = round(rng.uniform(9000, 18000), 2)\n    decoy_amount = round(binding_amount * rng.uniform(1.25, 1.9), 2)\n\n    binding_str = C.fmt_money(binding_amount)\n    decoy_str = C.fmt_money(decoy_amount)\n\n    # Randomise which row appears first to avoid position heuristics.\n    binding_first = rng.random() < 0.5\n\n    case_id = f\"boldface_binding_rule-{seed:04d}\"\n    question = (\n        f\"You are processing invoice {invoice_no} from {vendor}. Per the formatting \"\n        \"key printed on the page, only the dollar figure set in boldface is binding. \"\n        \"What is the amount owed? Respond with only the amount including the currency \"\n        \"symbol, no other text.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 670, \"Terms: Net 30\")\n\n        # Formatting key (explicit rule). Parenthetical ensures text-only\n        # extractors have an accessible hint mapping style -> token.\n        C.draw_paragraph(\n            c,\n            \"Formatting key: figures typeset in boldface indicate binding amounts. \"\n            \"Regular-weight figures are non-binding references retained for context. \"\n            \"(In the accessible text layer: bold amounts are annotated as [bold], \"\n            \"regular as [regular].)\",\n            72,\n            635,\n            font=C.FontSpec(size=10),\n        )\n\n        # A couple of filler line items for realism (values do not need to sum).\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(72, 580, \"DESCRIPTION\")\n        c.drawRightString(500, 580, \"AMOUNT\")\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 560, \"Consulting services (current period)\")\n        c.drawRightString(500, 560, C.fmt_money(round(binding_amount * 0.6, 2)))\n        c.drawString(72, 542, \"Infrastructure & hosting\")\n        c.drawRightString(500, 542, C.fmt_money(round(binding_amount * 0.35, 2)))\n\n        y = 500\n        c.line(380, y + 6, 500, y + 6)\n\n        # Two TOTAL rows: one is bold (binding), one is regular (decoy, larger size).\n        def draw_binding_row(ypos: float) -> None:\n            c.setFont(\"Helvetica-Bold\", 13)\n            c.drawString(72, ypos, \"TOTAL DUE:\")\n            c.drawRightString(500, ypos, binding_str)\n            # Invisible accessibility tag for text-extractors\n            C.draw_invisible_text(c, \" [bold]\", 505, ypos)\n\n        def draw_decoy_row(ypos: float) -> None:\n            c.setFont(\"Helvetica\", 16)  # visually more salient but non-bold\n            c.drawString(72, ypos, \"TOTAL DUE:\")\n            c.drawRightString(500, ypos, decoy_str)\n            # Invisible accessibility tag for text-extractors\n            C.draw_invisible_text(c, \" [regular]\", 505, ypos)\n\n        if binding_first:\n            draw_binding_row(480)\n            draw_decoy_row(455)\n        else:\n            draw_decoy_row(480)\n            draw_binding_row(455)\n\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"boldface_binding_rule\",\n        seed=seed,\n        question=question,\n        expected_answer=binding_str,\n        forbidden_answers=[],\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"binding_amount\": binding_amount,\n            \"decoy_amount\": decoy_amount,\n            \"binding_is_bold\": True,\n            \"binding_row_first\": binding_first,\n            \"expected_failure_mode\": (\n                \"Model ignores typographic weight in favor of salience (larger non-bold number) \"\n                \"and answers the decoy. Text-only verifiers can use the invisible [bold]/[regular] \"\n                \"annotations; humans can rely on boldface as instructed.\"\n            ),\n        },\n    )\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T16:49:38+00:00"
+}

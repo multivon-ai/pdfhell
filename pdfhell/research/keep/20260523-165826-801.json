@@ -1,0 +1,71 @@
+{
+  "candidate_id": "20260523-165826-801",
+  "trap_family": "shaded_box_binding_rule",
+  "researcher_model": "openai:gpt-5",
+  "rationale": "Targets grounding of background fill (shaded vs unshaded) \u2014 a visual cue distinct from bold/color/underline traps. Vision-heavy models often key on size/salience and ignore subtle region shading; text-only verifiers pass via invisible [SHADED]/[UNSHADED] tags. Expect weaker models (Haiku/Flash-lite) to pick the large unshaded decoy; stronger ones (GPT-5/Sonnet/Pro) to follow the policy and detect the shaded box.",
+  "action": "create_generator",
+  "score": 0.0275,
+  "novelty": 0.0275,
+  "probe_result": {
+    "trap_family": "shaded_box_binding_rule",
+    "n_cases": 10,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.09,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "shaded_box_binding_rule",
+    "n_cases": 20,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 1.0,
+      "anthropic:claude-sonnet-4-6": 0.95,
+      "openai:gpt-4o": 1.0,
+      "openai:gpt-5": 1.0
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-4o": 0.0,
+      "openai:gpt-5": 0.0
+    },
+    "cost_usd": 3.4,
+    "crashed_models": [
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "from __future__ import annotations\n\nfrom reportlab.pdfgen import canvas\nfrom reportlab.lib import colors\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Harborline Freight Partners\",\n    \"Greyloft Avionics Inc.\",\n    \"Solstice Imaging Inc.\",\n    \"Northwind Robotics Ltd.\",\n    \"Ferncliff Analytics Ltd.\",\n    \"Quillmark Publishing Group\",\n]\n\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n\n    vendor = rng.choice(_VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n\n    # Make the unshaded decoy salient and larger.\n    decoy_total = round(rng.uniform(12000, 45000), 2)\n    # Binding (shaded) total is a distinct smaller value to induce salience bias.\n    binding_total = round(decoy_total * rng.uniform(0.55, 0.85), 2)\n\n    decoy_str = C.fmt_money(decoy_total)\n    binding_str = C.fmt_money(binding_total)\n\n    case_id = f\"shaded_box_binding_rule-{seed:04d}\"\n    question = (\n        f\"You are processing invoice {invoice_no} from {vendor}. Per the printed policy, \"\n        \"only the amount shown inside the shaded gray box is binding. What is the amount due? \"\n        \"Respond with only the amount including the currency symbol, no other text.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        # Header\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE\")\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 670, \"Terms: Net 30\")\n\n        # Binding rule clause.\n        C.draw_paragraph(\n            c,\n            (\n                \"Binding rule: The amount displayed inside the shaded gray box is the \"\n                \"only binding 'Amount Due'. Any other totals, including larger and more \"\n                \"prominent figures shown in unshaded boxes, are non-binding references.\"\n            ),\n            72,\n            635,\n            font=C.FontSpec(size=10),\n        )\n\n        # Content filler (line items) to make layout natural.\n        c.setFont(\"Helvetica-Bold\", 10)\n        c.drawString(72, 560, \"DESCRIPTION\")\n        c.drawRightString(500, 560, \"AMOUNT\")\n        c.setFont(\"Helvetica\", 11)\n        y = 540\n        items = [\n            (\"Program services\", round(binding_total * 0.45, 2)),\n            (\"Hosting & infrastructure\", round(binding_total * 0.35, 2)),\n            (\"Support retainer\", round(binding_total * 0.20, 2)),\n        ]\n        for desc, amt in items:\n            c.drawString(72, y, desc)\n            c.drawRightString(500, y, C.fmt_money(amt))\n            y -= 18\n\n        # Two totals: a large unshaded decoy, and a shaded binding box.\n        # Layout: decoy on top (larger), shaded binding below.\n        # Box dimensions\n        box_w, box_h = 420, 56\n        left_x = 72\n        right_x = 72 + box_w\n\n        # Unshaded decoy box (stroke only)\n        decoy_y = 430\n        c.setStrokeColor(colors.black)\n        c.setLineWidth(1)\n        c.rect(left_x, decoy_y, box_w, box_h, stroke=1, fill=0)\n        c.setFont(\"Helvetica-Bold\", 12)\n        c.drawString(left_x + 10, decoy_y + box_h - 18, \"Preliminary Total (non-binding)\")\n        c.setFont(\"Helvetica-Bold\", 18)\n        # Invisible tag to make text-only verifiers answerable (marks unshaded)\n        C.draw_invisible_text(c, \"[UNSHADED] \", right_x - 10 - 200, decoy_y + 18)\n        c.drawRightString(right_x - 10, decoy_y + 18, decoy_str)\n\n        # Shaded binding box (light gray fill)\n        bind_y = 350\n        c.setFillColorRGB(0.92, 0.92, 0.92)\n        c.rect(left_x, bind_y, box_w, box_h, stroke=0, fill=1)\n        c.setFillColor(colors.black)\n        c.setFont(\"Helvetica-Bold\", 12)\n        c.drawString(left_x + 10, bind_y + box_h - 18, \"Certified Total (binding)\")\n        c.setFont(\"Helvetica-Bold\", 14)\n        # Invisible tag right before the visible amount to bind text-layer semantics\n        C.draw_invisible_text(c, \"[SHADED] \", right_x - 10 - 200, bind_y + 18)\n        c.drawRightString(right_x - 10, bind_y + 18, binding_str)\n\n        # Small footer\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"shaded_box_binding_rule\",\n        seed=seed,\n        question=question,\n        expected_answer=binding_str,\n        forbidden_answers=[],\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"binding_total\": binding_total,\n            \"decoy_total\": decoy_total,\n            \"visual_cue\": \"shaded_box\",\n            \"decoy_salience\": \"larger_font_unshaded\",\n            \"expected_failure_mode\": (\n                \"Model anchors on the larger unshaded total and ignores the shading-based rule; \"\n                \"models that ground visual background fills or read the invisible [SHADED] tag via \"\n                \"text extraction return the correct shaded-box amount.\"\n            ),\n        },\n    )\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T17:00:13+00:00"
+}

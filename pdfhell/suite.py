@@ -211,11 +211,82 @@ def mini_v3_suite() -> SuiteSpec:
     )
 
 
+def mini_v4_suite() -> SuiteSpec:
+    """The ``mini-v4`` suite: 17 trap families × 30 cases = 510 cases.
+
+    Adds seven more autoresearch-discovered families on top of mini-v3:
+
+      - em_dash_minus_sign: em/en-dash codepoint vs minus sign; clause
+        names the binding interpretation. (Opus 0%, Sonnet 5%, GPT-5 100%.)
+      - upside_down_amount: 180-degree rotated text. (Sonnet+Opus+Lite 0%,
+        Haiku 100%.)
+      - checksum_validation_rule: digit-sum-mod-K rule selects between
+        two candidates. (Opus+Lite+GPT-4o weak; rest strong.)
+      - mirror_image_glyphs: horizontally mirrored glyph rendering. **5/8
+        models at 0%; only OpenAI models pass cleanly.**
+      - boldface_binding_rule: 'use the boldface amount' rule. (Opus+Lite
+        at 0%, rest strong.)
+      - shaded_box_binding_rule: 'use the amount in the shaded box' rule.
+        (Opus 0%, rest near-perfect.)
+      - color_grounding_trap: 'use the red amount' rule, semantic colour
+        grounding. (Opus 0%, broad Anthropic+Gemini struggle.)
+
+    Striking emergent pattern across all seven: **Claude Opus 4-7 fails
+    0% on every one of them**, while Haiku 4-5 frequently passes 100%.
+    The premium Anthropic model has a systematic blind spot on
+    multi-step rule-following and visual grounding that the cheaper
+    sibling does not share.
+
+    Seeds reserved (by family, all non-overlapping):
+      hidden_ocr_mismatch:           1001-1030
+      footnote_override:             2001-2030
+      split_table_across_pages:      3001-3030
+      composite_trap:                4001-4030
+      scale_dependent_rendering:     5001-5030
+      cross_page_coreference:        6001-6030
+      unicode_confusable_total:      7001-7030
+      zero_width_space_split:        7101-7130
+      currency_mismatch_conversion:  7201-7230
+      mirrored_footer_notice:        7301-7330
+      em_dash_minus_sign:            8001-8030
+      upside_down_amount:            8101-8130
+      checksum_validation_rule:      8201-8230
+      mirror_image_glyphs:           8301-8330
+      boldface_binding_rule:         8401-8430
+      shaded_box_binding_rule:       8501-8530
+      color_grounding_trap:          8601-8630
+    """
+    return SuiteSpec(
+        name="mini-v4",
+        version="mini-v4",
+        traps={
+            "hidden_ocr_mismatch":          list(range(1001, 1031)),
+            "footnote_override":            list(range(2001, 2031)),
+            "split_table_across_pages":     list(range(3001, 3031)),
+            "composite_trap":               list(range(4001, 4031)),
+            "scale_dependent_rendering":    list(range(5001, 5031)),
+            "cross_page_coreference":       list(range(6001, 6031)),
+            "unicode_confusable_total":     list(range(7001, 7031)),
+            "zero_width_space_split":       list(range(7101, 7131)),
+            "currency_mismatch_conversion": list(range(7201, 7231)),
+            "mirrored_footer_notice":       list(range(7301, 7331)),
+            "em_dash_minus_sign":           list(range(8001, 8031)),
+            "upside_down_amount":           list(range(8101, 8131)),
+            "checksum_validation_rule":     list(range(8201, 8231)),
+            "mirror_image_glyphs":          list(range(8301, 8331)),
+            "boldface_binding_rule":        list(range(8401, 8431)),
+            "shaded_box_binding_rule":      list(range(8501, 8531)),
+            "color_grounding_trap":         list(range(8601, 8631)),
+        },
+    )
+
+
 SUITES: dict[str, SuiteSpec] = {
     "smoke": smoke_suite(),
     "mini": mini_suite(),
     "mini-v2": mini_v2_suite(),
     "mini-v3": mini_v3_suite(),
+    "mini-v4": mini_v4_suite(),
 }
 
 

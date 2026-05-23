@@ -1,0 +1,73 @@
+{
+  "candidate_id": "20260523-164226-853",
+  "trap_family": "color_grounding_trap",
+  "researcher_model": "google:gemini-2.5-pro",
+  "rationale": "Targets a model's ability to ground a semantic rule ('the red amount') in a visual property (text color). Invisible text labels the colors to ensure text-only verifiers can pass the 'answerable' gate, isolating the visual-grounding failure in multimodal models. Expect vision-heavy models to ignore text color and pick the more salient (e.g., larger) decoy amount.",
+  "action": "create_generator",
+  "score": 0.0157,
+  "novelty": 0.0157,
+  "probe_result": {
+    "trap_family": "color_grounding_trap",
+    "n_cases": 10,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "google:gemini-2.5-flash"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-2.5-flash": 0.6
+    },
+    "refused": {
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-2.5-flash": 0.0
+    },
+    "cost_usd": 0.09,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.6,
+    "spread": 0.4,
+    "solvable": true
+  },
+  "full_result": {
+    "trap_family": "color_grounding_trap",
+    "n_cases": 20,
+    "panel": [
+      "anthropic:claude-haiku-4-5",
+      "anthropic:claude-sonnet-4-6",
+      "anthropic:claude-opus-4-7",
+      "openai:gpt-4o",
+      "openai:gpt-5",
+      "google:gemini-flash-lite-latest",
+      "google:gemini-2.5-flash",
+      "google:gemini-2.5-pro"
+    ],
+    "per_model_pass": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 1.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 1.0,
+      "anthropic:claude-sonnet-4-6": 0.1,
+      "openai:gpt-5": 1.0,
+      "google:gemini-2.5-flash": 0.35,
+      "google:gemini-2.5-pro": 0.35
+    },
+    "refused": {
+      "anthropic:claude-opus-4-7": 0.0,
+      "anthropic:claude-haiku-4-5": 0.0,
+      "google:gemini-flash-lite-latest": 0.0,
+      "openai:gpt-4o": 0.0,
+      "anthropic:claude-sonnet-4-6": 0.0,
+      "openai:gpt-5": 0.0,
+      "google:gemini-2.5-flash": 0.0,
+      "google:gemini-2.5-pro": 0.65
+    },
+    "cost_usd": 3.92,
+    "crashed_models": [],
+    "pass_max": 1.0,
+    "pass_min": 0.0,
+    "spread": 1.0,
+    "solvable": true
+  },
+  "code": "from __future__ import annotations\n\nfrom reportlab.lib.colors import red\nfrom reportlab.pdfgen import canvas\n\nfrom ..case import HellCase\nfrom . import _common as C\n\n_VENDORS = [\n    \"Crimson Crest Solutions\",\n    \"Azure Dynamics Corp.\",\n    \"Golden Gate Analytics\",\n    \"Veridian Logistics Partners\",\n    \"Saffron Capital Holdings\",\n    \"Cerulean Robotics Inc.\",\n]\n\ndef generate(seed: int) -> tuple[bytes, HellCase]:\n    rng = C.rng_for(seed)\n\n    vendor = rng.choice(_VENDORS)\n    invoice_no = f\"INV-{rng.randint(100000, 999999)}\"\n\n    # The real binding total is defined by the rule (color). The decoy is not.\n    # Make them visually distinct in value.\n    real_total = round(rng.uniform(5000, 15000), 2)\n    decoy_total = round(real_total * rng.uniform(1.5, 2.5), 2)\n\n    # Randomize which total appears first on the page.\n    red_on_top = rng.random() < 0.5\n\n    real_str = C.fmt_money(real_total)\n    decoy_str = C.fmt_money(decoy_total)\n\n    case_id = f\"color_grounding_trap-{seed:04d}\"\n    question = (\n        f\"You are processing invoice {invoice_no} from {vendor}. According to the \"\n        \"rules specified in the 'Disambiguation Clause' section, what is the \"\n        \"final binding amount? Respond with only the amount including currency \"\n        \"symbol, no other text.\"\n    )\n\n    def draw(c: canvas.Canvas) -> None:\n        c.setFont(\"Helvetica-Bold\", 22)\n        c.drawString(72, 720, \"INVOICE\")\n\n        c.setFont(\"Helvetica\", 11)\n        c.drawString(72, 700, vendor)\n        c.drawString(72, 685, f\"Invoice #: {invoice_no}\")\n        c.drawString(72, 670, \"Terms: Net 30\")\n\n        # --- The rule clause ---\n        c.setFont(\"Helvetica-Bold\", 12)\n        c.drawString(72, 620, \"Disambiguation Clause\")\n        C.draw_paragraph(\n            c,\n            \"Two candidate totals are provided below for reconciliation. The \"\n            \"final, binding amount is the figure rendered in RED ink (RGB 1,0,0). \"\n            \"Any figure rendered in standard black ink is a non-binding preliminary \"\n            \"estimate and must be disregarded.\",\n            72,\n            600,\n            font=C.FontSpec(size=10),\n        )\n\n        y = 520\n        c.line(72, y, C.PAGE_WIDTH - 72, y)\n        y -= 25\n\n        # --- The two candidate totals ---\n        # Draw them in a random order to avoid positional bias.\n        top_total_str, bot_total_str = (\n            (real_str, decoy_str) if red_on_top else (decoy_str, real_str)\n        )\n        top_is_red = red_on_top\n\n        # Top amount\n        c.setFont(\"Helvetica\", 12)\n        c.drawString(72, y, \"Candidate Amount A:\")\n        if top_is_red:\n            c.setFillColor(red)\n            c.drawRightString(400, y, top_total_str)\n            c.setFillColorRGB(0, 0, 0)  # Reset to black\n            C.draw_invisible_text(c, \"INTERNAL_NOTE: Color=Red\", 410, y)\n        else:\n            c.drawRightString(400, y, top_total_str)\n            C.draw_invisible_text(c, \"INTERNAL_NOTE: Color=Black\", 410, y)\n        y -= 30\n\n        # Bottom amount\n        c.drawString(72, y, \"Candidate Amount B:\")\n        if not top_is_red:\n            c.setFillColor(red)\n            c.drawRightString(400, y, bot_total_str)\n            c.setFillColorRGB(0, 0, 0)  # Reset to black\n            C.draw_invisible_text(c, \"INTERNAL_NOTE: Color=Red\", 410, y)\n        else:\n            c.drawRightString(400, y, bot_total_str)\n            C.draw_invisible_text(c, \"INTERNAL_NOTE: Color=Black\", 410, y)\n        y -= 30\n\n        c.setFont(\"Helvetica-Oblique\", 8)\n        c.drawString(72, 60, \"Page 1 of 1\")\n\n    pdf_bytes = C.canvas_to_bytes(draw)\n\n    case = HellCase(\n        id=case_id,\n        trap_family=\"color_grounding_trap\",\n        seed=seed,\n        question=question,\n        expected_answer=real_str,\n        forbidden_answers=[decoy_str],\n        metadata={\n            \"vendor\": vendor,\n            \"invoice_no\": invoice_no,\n            \"real_total\": real_total,\n            \"decoy_total\": decoy_total,\n            \"red_on_top\": red_on_top,\n            \"expected_failure_mode\": (\n                \"Model fails to ground the semantic rule ('the red amount') in the \"\n                \"visual property of the text. It may ignore color and pick the \"\n                \"larger or first-listed amount.\"\n            ),\n            \"diagnostic\": (\n                \"The invisible text labels allow text-only verifiers to solve this, \"\n                \"isolating the failure to the multimodal model's vision-language \"\n                \"grounding capabilities.\"\n            ),\n        },\n    )\n\n    return pdf_bytes, case\n",
+  "timestamp": "2026-05-23T16:46:42+00:00"
+}

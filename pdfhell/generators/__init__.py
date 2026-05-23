@@ -25,6 +25,13 @@ from .unicode_confusable_total import generate as _unicode_confusable_total
 from .zero_width_space_split import generate as _zero_width_space_split
 from .currency_mismatch_conversion import generate as _currency_mismatch_conversion
 from .mirrored_footer_notice import generate as _mirrored_footer_notice
+from .em_dash_minus_sign import generate as _em_dash_minus_sign
+from .upside_down_amount import generate as _upside_down_amount
+from .checksum_validation_rule import generate as _checksum_validation_rule
+from .mirror_image_glyphs import generate as _mirror_image_glyphs
+from .boldface_binding_rule import generate as _boldface_binding_rule
+from .shaded_box_binding_rule import generate as _shaded_box_binding_rule
+from .color_grounding_trap import generate as _color_grounding_trap
 
 
 # Signature: (seed: int) -> (pdf_bytes: bytes, case: HellCase).
@@ -52,6 +59,18 @@ GENERATORS: dict[str, GeneratorFn] = {
     "zero_width_space_split": _zero_width_space_split,
     "currency_mismatch_conversion": _currency_mismatch_conversion,
     "mirrored_footer_notice": _mirrored_footer_notice,
+    # mini-v4 (2026-05-23): second autoresearch cycle, 115 candidates
+    # explored, 7 surviving traps. Striking emergent pattern:
+    # Claude Opus 4-7 fails 0/15-20 on EVERY new trap. Haiku 4-5 often
+    # passes 100% on the same trap. Premium tier has a systematic
+    # blind spot the cheaper sibling doesn't share.
+    "em_dash_minus_sign": _em_dash_minus_sign,
+    "upside_down_amount": _upside_down_amount,
+    "checksum_validation_rule": _checksum_validation_rule,
+    "mirror_image_glyphs": _mirror_image_glyphs,
+    "boldface_binding_rule": _boldface_binding_rule,
+    "shaded_box_binding_rule": _shaded_box_binding_rule,
+    "color_grounding_trap": _color_grounding_trap,
 }
 
 TRAP_FAMILIES: tuple[str, ...] = tuple(GENERATORS.keys())
