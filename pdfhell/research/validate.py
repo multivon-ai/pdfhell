@@ -235,8 +235,10 @@ def _loose_eq(a: str, b: str) -> bool:
         return abs(na - nb) < 1e-4
 
     # Fall back to alphanumeric-only comparison for non-numeric answers
-    norm = lambda s: "".join(ch for ch in s if ch.isalnum())
-    return norm(a) == norm(b)
+    def _norm(s: str) -> str:
+        return "".join(ch for ch in s if ch.isalnum())
+
+    return _norm(a) == _norm(b)
 
 
 def _ask_text_only(model_spec: str, prompt: str) -> str | None:
@@ -429,7 +431,7 @@ def run_all_gates(
     (parseable + deterministic are cheap, answerable + forbidden_clean
     cost API calls)."""
     # Always re-import to pick up new file
-    from pdfhell.generators import generate_case, GENERATORS
+    from pdfhell.generators import GENERATORS
     if trap_family in sys.modules:
         importlib.reload(sys.modules.get(f"pdfhell.generators.{trap_family}", sys.modules[__name__]))
 

@@ -21,11 +21,9 @@ import itertools
 import json
 import os
 import re
-import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
-from .budget import estimate_proposal_cost
 
 
 RESEARCHER_ROTATION: tuple[str, ...] = (

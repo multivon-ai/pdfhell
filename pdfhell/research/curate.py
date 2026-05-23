@@ -142,7 +142,7 @@ def _print_confirmation(keeper: dict, confirmation: PanelResult) -> None:
     print(f"  original spread: {spread_a:.2f}")
     print(f"  confirmation spread: {spread_b:.2f}  {'OK' if spread_holds else 'DRIFT'}")
     print(f"  max per-model delta: {max_abs_delta*100:>4.1f}%  {'ROBUST' if robust else 'FRAGILE'}")
-    print(f"  per-model deltas:")
+    print("  per-model deltas:")
     for m, d in sorted(deltas.items(), key=lambda x: -abs(x[1])):
         sign = "+" if d >= 0 else ""
         flag = "" if abs(d) <= 0.20 else "  ⚠ swing"
@@ -162,7 +162,7 @@ def _promotion_plan(keepers: list[dict]) -> str:
             out.append(f"| `{m}` | {p*100:.0f}% |")
         out.append("")
         out.append(f"- Source: `pdfhell/research/keep/{k['trap_family']}.py` (from `keep/{k['candidate_id']}.json`)")
-        out.append(f"- Suggested seed range for mini-v3: `range(7001, 7031)`")
+        out.append("- Suggested seed range for mini-v3: `range(7001, 7031)`")
         out.append(f"- Action: `cp pdfhell/research/keep/{k['trap_family']}.py pdfhell/generators/` then register in `__init__.py`")
         out.append("")
     return "\n".join(out)

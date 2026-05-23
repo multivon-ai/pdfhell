@@ -74,7 +74,10 @@ def test_novelty_takes_nearest_history():
     nov_near = novelty_score(r, [near])
     nov_far = novelty_score(r, [far])
     nov_both = novelty_score(r, [near, far])
-    assert nov_both <= nov_near + 1e-6  # the near history dominates
+    # The nearest prior dominates: novelty against {near} stays low,
+    # adding `far` to history doesn't make it higher.
+    assert nov_both <= nov_near + 1e-6
+    assert nov_far > nov_near  # sanity: far prior is more "different"
 
 
 # ─── write_results_row TSV serialisation ────────────────────────────────

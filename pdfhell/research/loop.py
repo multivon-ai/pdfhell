@@ -19,10 +19,8 @@ import argparse
 import builtins
 import functools
 import json
-import os
 import signal
 import sys
-import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,17 +32,17 @@ from pathlib import Path
 # because the loop is also imported as a library.
 print = functools.partial(builtins.print, flush=True)  # noqa: A001
 
-from .budget import Budget, estimate_proposal_cost
-from .eval import (
+from .budget import Budget, estimate_proposal_cost  # noqa: E402
+from .eval import (  # noqa: E402
     PanelResult,
     full as eval_full,
     novelty_score,
     probe as eval_probe,
     write_results_row,
 )
-from .researcher import propose, rotation
-from .registry import materialise_candidate, revert_candidate, temporary_register
-from .validate import run_all_gates
+from .researcher import propose, rotation  # noqa: E402
+from .registry import materialise_candidate, revert_candidate, temporary_register  # noqa: E402
+from .validate import run_all_gates  # noqa: E402
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -434,17 +432,17 @@ def run(
     try:
         from .report import build_summary
         summary = build_summary()
-        print(f"\n[loop] ─── session summary ───")
+        print("\n[loop] ─── session summary ───")
         if summary["theme_convergence"]:
             print("[loop] convergent themes (≥2 researchers, same direction):")
             for theme, info in summary["theme_convergence"].items():
                 print(f"  {theme:22s} {info['attempts']:>2d} attempts by {info['distinct_researchers']} researchers")
         if summary["keepers"]:
-            print(f"\n[loop] top keepers (ranked by score):")
+            print("\n[loop] top keepers (ranked by score):")
             for k in summary["keepers"][:5]:
                 print(f"  {k['trap_family']:36s} score={k['score']:.2f}  by {k['researcher_model']}")
-        print(f"\n[loop] for full breakdown: python -m pdfhell.research.report")
-        print(f"[loop] for promotion plan: python -m pdfhell.research.curate --promotion-plan")
+        print("\n[loop] for full breakdown: python -m pdfhell.research.report")
+        print("[loop] for promotion plan: python -m pdfhell.research.curate --promotion-plan")
     except Exception as exc:
         # Don't let the summary code crash the loop's exit path.
         print(f"[loop] (summary unavailable: {exc})")

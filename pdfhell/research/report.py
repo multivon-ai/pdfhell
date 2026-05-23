@@ -24,7 +24,6 @@ from __future__ import annotations
 import argparse
 import collections
 import json
-import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -221,7 +220,7 @@ def build_summary(
 
 
 def _print_text(summary: dict) -> None:
-    print(f"=== research run summary ===")
+    print("=== research run summary ===")
     print(f"total attempts:    {summary['total_attempts']}")
     print(f"spend (audited):   ${summary['spend_total_audited']:.2f}")
     print()
@@ -258,7 +257,7 @@ def _print_text(summary: dict) -> None:
         print(f"    by {k['researcher_model']}")
         print(f"    rationale: {k['rationale'][:180]}")
         if k['per_model_pass']:
-            print(f"    per-model pass:")
+            print("    per-model pass:")
             sorted_models = sorted(k['per_model_pass'].items(), key=lambda x: -x[1])
             for m, p in sorted_models:
                 bar = "█" * int(p * 20)

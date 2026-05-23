@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 
 from pdfhell.research.researcher import parse_proposal, build_prompt
-from pathlib import Path
 
 
 def _valid_payload(trap: str = "unicode_confusable") -> dict:
