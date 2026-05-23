@@ -169,6 +169,33 @@ def _print_report(report: SuiteReport) -> None:
     print(f"model: {report.model}")
     print(f"pass: {sum(1 for _ in report.cases if _.correct) if report.cases else int(report.pass_rate * report.n)}/{report.n}  ({report.pass_rate:.1%})")
     print(f"refused: {report.refused_rate:.1%}")
+
+    # Loud warning when API errors are non-trivial. A pass_rate computed
+    # over a run where every (or most) calls hit a 4xx is a leaderboard
+    # lie waiting to happen — the model never actually answered, so the
+    # "0%" or "30%" pass rate is meaningless. We surface this between
+    # the headline pass rate and the per-trap breakdown so it can't be
+    # missed. Tied directly to the mini-v4 leaderboard incident where
+    # Opus 4-7 was silently scored as 0/170 due to a temperature-param
+    # deprecation in the Anthropic API.
+    if report.api_error_rate > 0.001:
+        n_errors = int(round(report.api_error_rate * report.n))
+        marker = "⚠ " if report.api_error_rate >= 0.1 else "  "
+        print(f"{marker}api errors: {n_errors}/{report.n}  ({report.api_error_rate:.1%})  ← these are not model failures; the provider rejected the call")
+        if report.api_error_rate >= 0.1:
+            # Show the first error message so the user can fix it
+            # (typically auth, model-name typo, deprecated param,
+            # or rate-limit). One sample is enough to diagnose.
+            first_err = next(
+                (c.model_output for c in report.cases if c.api_error),
+                "",
+            )
+            if first_err:
+                # Trim to ~200 chars so the warning stays readable
+                snippet = first_err.replace("\n", " ")[:200]
+                print(f"  first error: {snippet}")
+            print("  the pass rate above is unreliable. Fix the provider issue and re-run.")
+
     print()
     print("per-trap pass rate:")
     for trap, rate in sorted(report.per_trap_pass.items()):

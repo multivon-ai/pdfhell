@@ -32,7 +32,21 @@ _VISION_CAPABLE = {
         "gpt-4o", "gpt-4.1", "gpt-5",
     },
     "google": {
+        # All Gemini variants since 1.5 are vision-capable. The
+        # `-flash-lite` and `-flash-lite-latest` family was added to
+        # the allowlist after the mini-v4 leaderboard run revealed it
+        # was being incorrectly gated out as text-only despite
+        # successfully handling PDF input via the genai SDK.
         "gemini-1.5", "gemini-2.5", "gemini-3", "gemini-3.1",
+        "gemini-flash", "gemini-flash-lite",
+    },
+    # ollama serves any locally-pulled GGUF/GGML model via an OpenAI-
+    # compatible API at 127.0.0.1:11434. Vision support depends on the
+    # underlying model — we list known vision-capable model-name prefixes
+    # here. Add more as new VLMs land in the ollama library.
+    "ollama": {
+        "llama3.2-vision", "llama4-vision", "gemma3", "qwen2.5vl",
+        "qwen2-vl", "minicpm-v", "llava", "bakllava", "moondream",
     },
 }
 
@@ -101,9 +115,11 @@ def call_vision(
         return _openai_call(prompt, sources, judge, max_tokens)
     if provider == "google":
         return _google_call(prompt, sources, judge, max_tokens)
+    if provider == "ollama":
+        return _ollama_call(prompt, sources, judge, max_tokens)
     raise JudgeUnavailable(
         f"provider {provider!r} is not wired for vision; use "
-        "anthropic, openai, or google."
+        "anthropic, openai, google, or ollama."
     )
 
 
@@ -136,12 +152,24 @@ def _anthropic_call(
             content.append({"type": "image", "source": {"type": "url", "url": src}})
     content.append({"type": "text", "text": prompt})
     client = anthropic.Anthropic()
-    msg = client.messages.create(
-        model=judge.model,
-        max_tokens=max_tokens,
-        temperature=judge.temperature,
-        messages=[{"role": "user", "content": content}],
-    )
+
+    # Anthropic's reasoning-tier models (claude-opus-4-7 and successors)
+    # deprecated the `temperature` parameter — they reject the request
+    # with a 400 if it's present. Detect those by name and omit the
+    # field; the model uses its own default (effectively deterministic
+    # for reasoning models). Older models (haiku, sonnet, opus-3, opus-4)
+    # still accept and honour temperature, so we keep it for them.
+    model_lc = (judge.model or "").lower()
+    reasoning_tier = model_lc.startswith("claude-opus-4-7") or model_lc.startswith("claude-opus-5")
+    kwargs: dict = {
+        "model": judge.model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": content}],
+    }
+    if not reasoning_tier:
+        kwargs["temperature"] = judge.temperature
+
+    msg = client.messages.create(**kwargs)
     return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
 
 
@@ -226,6 +254,120 @@ def _google_call(
         ),
     )
     return resp.text or ""
+
+
+def _ollama_call(
+    prompt: str, sources: list[str], judge: JudgeConfig, max_tokens: int
+) -> str:
+    """Call a locally-running ollama model via its native /api/chat endpoint.
+
+    ollama exposes a native chat API at 127.0.0.1:11434 (configurable via
+    OLLAMA_HOST) that accepts inline base64 images directly. We use the
+    native API rather than the OpenAI-compatible shim because the
+    OpenAI shim doesn't support PDF inputs (only image URLs), but
+    ollama's native API can convert PDFs to images server-side via the
+    "images" field with PDF bytes for vision-capable models.
+
+    Models are referenced by their ollama tag, e.g. ``ollama:llama3.2-vision``
+    or ``ollama:gemma3:4b`` (the colon-suffix variant is rare; we
+    accept it by passing the model field through unchanged).
+
+    For PDF input, we rasterise to images locally via pypdf2image since
+    ollama's vision API expects images not PDFs. If pdf2image isn't
+    installed we fall back to passing the PDF bytes directly and let
+    ollama decide.
+    """
+    try:
+        import httpx  # noqa: F401 — used by anthropic/openai SDKs, present in env
+    except ImportError:
+        pass
+    try:
+        import urllib.request
+        import json as _json
+    except ImportError as exc:  # pragma: no cover — stdlib
+        raise JudgeUnavailable(f"stdlib import failed: {exc}") from exc
+
+    import os as _os
+    host = _os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+
+    # Build the images list. ollama's /api/chat accepts base64-encoded
+    # raw bytes (no data: prefix) in the message's `images` field.
+    images: list[str] = []
+    for src in sources:
+        _, mime, b64 = _image_to_data_uri(src)
+        if not b64:
+            raise JudgeUnavailable(
+                "ollama provider requires local files or data URIs for image input; "
+                f"got remote URL: {src}"
+            )
+        if mime == "application/pdf":
+            # Rasterise PDF → image so vision models can read it.
+            png_b64 = _pdf_to_png_b64(b64)
+            images.append(png_b64)
+        else:
+            images.append(b64)
+
+    payload = {
+        "model": judge.model,
+        "messages": [
+            {"role": "user", "content": prompt, "images": images},
+        ],
+        "stream": False,
+        "options": {
+            "temperature": judge.temperature,
+            "num_predict": max_tokens,
+        },
+    }
+
+    req = urllib.request.Request(
+        f"{host}/api/chat",
+        data=_json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            body = _json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:
+        raise JudgeUnavailable(
+            f"ollama request failed: {type(exc).__name__}: {exc}. "
+            f"Is ollama running at {host}? (`ollama serve`)"
+        ) from exc
+
+    return (body.get("message", {}).get("content", "") or "").strip()
+
+
+def _pdf_to_png_b64(pdf_b64: str) -> str:
+    """Rasterise the first page of a base64-encoded PDF to a PNG and
+    return that PNG as base64. Used by the ollama provider since
+    vision-capable ollama models expect images, not PDFs.
+
+    Uses pypdf + reportlab if available; falls back to a single-page
+    minimal rendering via pypdfium2 (more reliable for arbitrary PDFs).
+    """
+    import base64
+    raw = base64.b64decode(pdf_b64)
+    try:
+        # pypdfium2 is the best default — pure-Python wheels, no
+        # poppler dep, handles most reportlab-generated PDFs cleanly.
+        import pypdfium2  # type: ignore[import-not-found]
+        pdf = pypdfium2.PdfDocument(raw)
+        page = pdf[0]
+        # 2x scale = ~150 DPI for a Letter page. Good enough for the
+        # vision pipelines we're testing against (Claude rasterises to
+        # ~1568px, GPT to 768px tiles — so feeding them ~1700px on the
+        # long side keeps detail without bloating bytes).
+        bitmap = page.render(scale=2.0)
+        pil_image = bitmap.to_pil()
+        import io
+        buf = io.BytesIO()
+        pil_image.save(buf, format="PNG", optimize=True)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except ImportError as exc:
+        raise JudgeUnavailable(
+            "PDF→PNG conversion needs pypdfium2 for the ollama provider. "
+            "Install with `pip install pypdfium2 Pillow`."
+        ) from exc
 
 
 __all__ = ["call_vision", "JudgeUnavailable"]

@@ -48,16 +48,34 @@ def parse_model_spec(spec: str) -> JudgeConfig:
         )
     provider, model = spec.split(":", 1)
     provider = provider.strip().lower()
-    if provider not in {"anthropic", "openai", "google"}:
+    if provider not in {"anthropic", "openai", "google", "ollama"}:
         raise ValueError(
             f"unsupported provider {provider!r}; "
-            "use anthropic, openai, or google"
+            "use anthropic, openai, google, or ollama"
         )
     # max_tokens=2048 gives prose answers room (e.g. footnote_override
     # carve-out summaries) without letting models ramble. Gemini 2.5
     # Flash allocates output tokens to internal "thinking"; tight
     # budgets either produce empty responses or truncate mid-sentence.
     # 2k is sufficient headroom in practice.
+
+    # multivon-eval's JudgeConfig only whitelists the three cloud
+    # providers. For locally-hosted models served via ollama we use a
+    # duck-typed config that has the same field names — vision.py only
+    # reads .provider, .model, .temperature and doesn't depend on the
+    # multivon-eval class.
+    if provider == "ollama":
+        from dataclasses import dataclass as _dc, field as _field
+
+        @_dc(slots=True)
+        class _OllamaConfig:
+            provider: str
+            model: str
+            temperature: float = 0.0
+            max_tokens: int = 2048
+            base_url: str | None = None
+
+        return _OllamaConfig(provider=provider, model=model.strip())
     return JudgeConfig(
         provider=provider,
         model=model.strip(),

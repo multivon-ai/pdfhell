@@ -107,6 +107,14 @@ class CaseScore:
     ``correct`` is the headline binary signal pdfhell publishes. The
     other fields disambiguate *how* the model got it wrong, which is
     what makes pdfhell useful as a diagnostic tool — not just a number.
+
+    ``api_error`` distinguishes "the provider returned an error so we
+    couldn't actually evaluate the model" from "the model genuinely got
+    it wrong". This is critical: the mini-v4 leaderboard run silently
+    scored Opus 4-7 as 0/170 when in fact every single call had failed
+    with a `temperature deprecated` API error. The fix is to flag those
+    cases so they don't masquerade as model failures, and to surface
+    the error rate at the report level.
     """
 
     case_id: str
@@ -119,6 +127,7 @@ class CaseScore:
     model_output: str = ""
     expected: str = ""
     failure_mode: str = ""  # human-readable, drawn from the case metadata when relevant
+    api_error: bool = False  # True when the provider call itself failed (not a model answer)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -132,6 +141,7 @@ class CaseScore:
             "model_output": self.model_output,
             "expected": self.expected,
             "failure_mode": self.failure_mode,
+            "api_error": self.api_error,
         }
 
 
@@ -174,6 +184,13 @@ def score_case(case: HellCase, model_output: str) -> CaseScore:
       the model returned both, which is incoherent and should be flagged).
     - Refusal detection runs last, only on otherwise-wrong outputs.
     """
+    # Detect API-error sentinels emitted by the runner when a provider
+    # call fails. These look like "[error] BadRequestError: ..." or
+    # "[error] JudgeUnavailable: ...". We do NOT score these as model
+    # failures because the model never actually got a chance to answer.
+    # Flagged separately so SuiteReport.api_error_rate can surface them.
+    api_error = model_output.strip().startswith("[error]")
+
     if case.expected_tokens:
         matched_expected = all(_contains_loose(model_output, t) for t in case.expected_tokens)
     else:
@@ -209,6 +226,7 @@ def score_case(case: HellCase, model_output: str) -> CaseScore:
         model_output=model_output,
         expected=case.expected_answer,
         failure_mode=failure_mode,
+        api_error=api_error,
     )
 
 
@@ -227,6 +245,7 @@ class SuiteReport:
     per_trap_pass: dict[str, float]
     per_trap_fell_for_trap: dict[str, float]
     refused_rate: float
+    api_error_rate: float = 0.0  # Fraction of cases where the provider call failed.
     cases: list[CaseScore] = field(default_factory=list)
     suite_version: str = ""  # e.g. "mini-v1" — see pdfhell.suite.SuiteSpec.version
     suite_hash: str = ""  # 8-char SHA-256 prefix of the sorted (trap, seed) pairs
@@ -271,6 +290,7 @@ class SuiteReport:
             "per_trap_pass_ci": {k: list(v) for k, v in self.per_trap_pass_ci.items()},
             "per_trap_fell_for_trap": self.per_trap_fell_for_trap,
             "refused_rate": self.refused_rate,
+            "api_error_rate": self.api_error_rate,
             "cases": [c.to_dict() for c in self.cases],
         }
 
@@ -286,7 +306,8 @@ class SuiteReport:
 def summarise(model: str, suite: str, scores: list[CaseScore]) -> SuiteReport:
     if not scores:
         return SuiteReport(model=model, suite=suite, n=0, pass_rate=0.0,
-                           per_trap_pass={}, per_trap_fell_for_trap={}, refused_rate=0.0, cases=[])
+                           per_trap_pass={}, per_trap_fell_for_trap={}, refused_rate=0.0,
+                           api_error_rate=0.0, cases=[])
     by_trap: dict[str, list[CaseScore]] = {}
     for s in scores:
         by_trap.setdefault(s.trap_family, []).append(s)
@@ -306,5 +327,6 @@ def summarise(model: str, suite: str, scores: list[CaseScore]) -> SuiteReport:
         per_trap_pass=per_trap_pass,
         per_trap_fell_for_trap=per_trap_fell,
         refused_rate=sum(c.refused for c in scores) / len(scores),
+        api_error_rate=sum(c.api_error for c in scores) / len(scores),
         cases=scores,
     )
