@@ -109,9 +109,15 @@ _USER_PROMPT_TEMPLATE = """## program.md
 
 {recent_tsv}
 
+## Trap names already attempted this session — DO NOT RE-USE these names
+
+{tried_names}
+
 ## Your task
 
-Propose ONE candidate. Output JSON only, no prose. Pick a trap_family name that doesn't collide with existing ones (see the recent results above). If `results.tsv` is empty, this is the first run — pick a high-novelty direction (the program.md "hints" section lists some). If recent rows show a pattern that's working, *extend* it; if a pattern is failing repeatedly, abandon it.
+Propose ONE candidate. Output JSON only, no prose. Pick a trap_family name that doesn't appear in the "already attempted" list above, and doesn't collide with existing v1/v2 trap names (hidden_ocr_mismatch, footnote_override, split_table_across_pages, composite_trap, scale_dependent_rendering, cross_page_coreference).
+
+If `results.tsv` is empty, this is the first run — pick a high-novelty direction (the program.md "hints" section lists some). If recent rows show a pattern that's *working* (status=keep with high spread), feel free to extend it with a different mechanism that targets the same model blind spot. If a pattern is *failing* repeatedly (multiple revert_probe or gate_fail rows for the same family), abandon it.
 
 JSON proposal:"""
 
@@ -122,8 +128,14 @@ def build_prompt(
     common_py_path: Path,
     reference_py_path: Path,
     results_tsv_path: Path,
+    tried_names: list[str] | None = None,
 ) -> tuple[str, str]:
-    """Return (system_prompt, user_prompt). Both are pre-formatted."""
+    """Return (system_prompt, user_prompt). Both are pre-formatted.
+
+    ``tried_names`` is the set of trap_family names already attempted
+    in the current session. Pass it explicitly so the agent doesn't
+    re-propose a name that's already been evaluated (waste of spend).
+    """
     program_md = program_md_path.read_text(encoding="utf-8") if program_md_path.exists() else ""
     common_py = common_py_path.read_text(encoding="utf-8") if common_py_path.exists() else ""
     reference_py = reference_py_path.read_text(encoding="utf-8") if reference_py_path.exists() else ""
@@ -132,11 +144,18 @@ def build_prompt(
         recent = "\n".join(lines[-30:]) if len(lines) > 30 else "\n".join(lines)
     else:
         recent = "(empty — first run)"
+
+    if tried_names:
+        tried_block = "\n".join(f"  - {n}" for n in sorted(set(tried_names)))
+    else:
+        tried_block = "  (none yet — this is the first proposal this session)"
+
     user = _USER_PROMPT_TEMPLATE.format(
         program_md=program_md,
         common_py=common_py,
         reference_py=reference_py,
         recent_tsv=recent,
+        tried_names=tried_block,
     )
     return _SYSTEM_PROMPT, user
 
@@ -317,25 +336,38 @@ def propose(
     reference_py_path: Path,
     results_tsv_path: Path,
     max_retries: int = 3,
+    tried_names: list[str] | None = None,
 ) -> Proposal | None:
     """Get one proposal from the next researcher in rotation.
 
     On parse failure we cycle to the next researcher (up to
-    ``max_retries`` total). The caller is responsible for cost accounting
-    — call ``estimate_proposal_cost`` if you need to pre-flight.
+    ``max_retries`` total). If the researcher returns a name that
+    was already tried this session, we count it as a retry-eligible
+    failure (the rotation will hit a different researcher next).
+
+    The caller is responsible for cost accounting — call
+    ``estimate_proposal_cost`` if you need to pre-flight.
     """
     system, user = build_prompt(
         program_md_path=program_md_path,
         common_py_path=common_py_path,
         reference_py_path=reference_py_path,
         results_tsv_path=results_tsv_path,
+        tried_names=tried_names,
     )
+    tried_set = set(tried_names or [])
     for _ in range(max_retries):
         model = next(rotator)
         raw = _call_researcher(model, system, user)
         if raw is None:
             continue
         proposal = parse_proposal(raw, researcher_model=model)
-        if proposal is not None:
-            return proposal
+        if proposal is None:
+            continue
+        if proposal.trap_family in tried_set:
+            # The agent re-proposed an existing name despite the
+            # tried_names hint. Try the next researcher in rotation;
+            # they may pick a different direction.
+            continue
+        return proposal
     return None

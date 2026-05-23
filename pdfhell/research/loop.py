@@ -16,6 +16,8 @@ candidate, writes the log row, and exits. A file at
 from __future__ import annotations
 
 import argparse
+import builtins
+import functools
 import json
 import os
 import signal
@@ -24,6 +26,13 @@ import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+# Force unbuffered prints so a long-running loop is observable in real
+# time even when stdout is captured (e.g. background process, log
+# redirection, CI). We monkey-patch print rather than running with -u
+# because the loop is also imported as a library.
+print = functools.partial(builtins.print, flush=True)  # noqa: A001
 
 from .budget import Budget, estimate_proposal_cost
 from .eval import (
@@ -67,6 +76,25 @@ def _short_id() -> str:
     """Compact ID for a candidate row: YYYYMMDD-HHMMSS-mmm."""
     now = datetime.now(timezone.utc)
     return now.strftime("%Y%m%d-%H%M%S-") + f"{now.microsecond // 1000:03d}"
+
+
+def _load_tried_names() -> list[str]:
+    """Read every trap_family name ever attempted (from results.tsv).
+
+    Seeds the session-level dedupe set so a new loop run doesn't
+    re-propose names that were already evaluated in prior runs.
+    """
+    if not RESULTS_TSV.exists():
+        return []
+    names: list[str] = []
+    with RESULTS_TSV.open("r", encoding="utf-8") as f:
+        for i, line in enumerate(f):
+            if i == 0:  # header
+                continue
+            parts = line.split("\t")
+            if len(parts) >= 4 and parts[3]:
+                names.append(parts[3])
+    return names
 
 
 def _load_keep_history() -> list[PanelResult]:
@@ -170,6 +198,11 @@ def run(
     print(f"[loop] research dir: {RESEARCH_DIR}")
     print(f"[loop] keep dir: {KEEP_DIR} ({len(history)} prior survivors)")
 
+    # Track every trap_family name attempted this session so the
+    # researcher doesn't burn API spend re-proposing duplicates.
+    # Seeded with whatever's already in results.tsv from prior runs.
+    tried_names: list[str] = _load_tried_names()
+
     for i in range(1, max_candidates + 1):
         if not _running:
             break
@@ -198,6 +231,7 @@ def run(
                 common_py_path=COMMON_PY,
                 reference_py_path=REFERENCE_PY,
                 results_tsv_path=RESULTS_TSV,
+                tried_names=tried_names,
             )
         except Exception as exc:
             print(f"  [propose] crashed: {exc}")
@@ -238,6 +272,7 @@ def run(
 
         print(f"  [propose] {proposal.researcher_model} → {proposal.trap_family}")
         print(f"  [rationale] {proposal.rationale[:140]}")
+        tried_names.append(proposal.trap_family)
 
         if _candidate_collides(proposal.trap_family):
             # Don't overwrite a v1/v2 trap. Force a rename so the
@@ -246,6 +281,7 @@ def run(
             print(f"  [rename] {proposal.trap_family} collides; using {renamed}")
             proposal.trap_family = renamed
             proposal.target_path = f"pdfhell/generators/{renamed}.py"
+            tried_names.append(renamed)
 
         # ─── MATERIALISE ────────────────────────────────────────────
         gen_path = materialise_candidate(proposal.code, proposal.trap_family)
