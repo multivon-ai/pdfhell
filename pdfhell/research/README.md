@@ -107,9 +107,26 @@ candidates.
 | [`validate.py`](validate.py) | The five gates |
 | [`registry.py`](registry.py) | Temporary candidate registration |
 | [`budget.py`](budget.py) | Per-model cost estimates + cap enforcement |
+| [`report.py`](report.py) | Summarise a run (status counts, spend by researcher, theme convergence, keepers ranked) |
+| [`curate.py`](curate.py) | Confirmation re-run for keepers + promotion plan for next `mini-vN` |
 | `results.tsv` | The research trail — one row per candidate, ever |
 | `keep/*.json` | Surviving candidates with full provenance |
+| `keep/*.py` | The agent-generated source code for each survivor |
 | `budget.jsonl` | Per-spend audit log |
+
+## Other CLIs
+
+```bash
+# Summarise current state of the research trail
+python -m pdfhell.research.report
+python -m pdfhell.research.report --json    # machine-readable
+
+# Review keepers + plan the next mini-vN
+python -m pdfhell.research.curate                          # list keepers
+python -m pdfhell.research.curate --promotion-plan         # markdown summary
+python -m pdfhell.research.curate --confirm <id>           # re-run eval, ~$3
+python -m pdfhell.research.curate --confirm-all            # all keepers, ~$3 each
+```
 
 ## What goes into the next `mini-vN`
 
