@@ -11,27 +11,28 @@
 
 PDF Hell is a small, focused benchmark for three specific failure modes in AI document pipelines. Every test case is a PDF generated *from code*, so the correct answer is known exactly. There's no LLM judging another LLM's interpretation — the same complexity that fools the model isn't asked to grade it.
 
-## The headline finding (mini-v4, 2026-05-24)
+## The headline finding (mini-v4-sample, 2026-05-24)
 
-**Claude Opus 4-7 — Anthropic's most expensive vision model — fails 0/20 on all seven trap families discovered by the [autoresearch loop](pdfhell/research/). Claude Haiku 4-5 — the cheapest model in the same family — passes 75–100% on six of them.** Same provider, opposite outcomes.
+> **⚠ Retraction notice — 2026-05-24:** earlier versions of this README, the 0.4.0 / 0.5.0 release notes, and the original `CONFIRMATION_REPORT.md` claimed Claude Opus 4-7 fails 0% on all seven mini-v4 trap families. **That claim was an eval artifact** — every Opus call had failed with a `temperature deprecated` API error that the runner silently scored as "wrong answer". Full retraction and corrected numbers in [`pdfhell/research/CORRECTION_NOTICE.md`](pdfhell/research/CORRECTION_NOTICE.md). The corrected leaderboard is below.
 
-Across original loop + fresh-seed confirmation: **~280 Opus calls across 7 distinct procedural traps, zero successes.** The probability of this happening by chance if Opus's true pass rate were even 5% is on the order of 5×10⁻⁷. See [`pdfhell/research/CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for full per-trap deltas.
+| Model | Overall (mini-v4-sample, n=170) | Notable per-trap weakness |
+|---|---:|---|
+| `openai:gpt-5` | **94.7%** | — |
+| `anthropic:claude-haiku-4-5` | 91.2% | — |
+| `google:gemini-flash-lite-latest` | 88.8% | 0% on `zero_width_space_split` |
+| `openai:gpt-4o` | 81.2% | **0% on `hidden_ocr_mismatch`** (v1 finding holds) |
+| `anthropic:claude-opus-4-7` | 79.4% | **0% on `scale_dependent_rendering` + `zero_width_space_split`** |
+| `google:gemini-2.5-pro` | 67.1% | 0% on `mirror_image_glyphs`, `mirrored_footer_notice`, `shaded_box_binding_rule` |
+| `anthropic:claude-sonnet-4-6` | 60.6% | 0% on 6 traps including `mirror_image_glyphs`, `upside_down_amount`, `color_grounding_trap` |
+| `google:gemini-2.5-flash` | 59.4% | 0% on `mirror_image_glyphs`, `em_dash_minus_sign`, `mirrored_footer_notice` |
 
-| v4 trap (agent-discovered) | Opus 4-7 | Sonnet 4-6 | Haiku 4-5 |
-|---|---:|---:|---:|
-| `em_dash_minus_sign` | **0%** | 5% | 40% |
-| `upside_down_amount` | **0%** | 0% | 100% |
-| `checksum_validation_rule` | **0%** | 70% | 35% |
-| `mirror_image_glyphs` | **0%** | 0% | 75% |
-| `boldface_binding_rule` | **0%** | 100% | 100% |
-| `shaded_box_binding_rule` | **0%** | 95% | 100% |
-| `color_grounding_trap` | **0%** | 10% | 100% |
+**Two real, narrower findings that survive correction:**
 
-Seven independent proposals from three different researcher LLMs across three mechanism categories (typographic confusables, geometric transforms, printed-rule following) all converged on the same Opus blind spot. Provisional hypothesis: Opus under-weights printed procedural instructions in favour of salience-driven extraction.
+1. **GPT-4o blind spot on hidden OCR.** Falls for `hidden_ocr_mismatch` 10/10. GPT-5 fixed most of it (80% pass). Mini-v1 finding from 0.1.0 still holds.
 
-### Earlier finding: GPT-4o vs hidden OCR (mini-v1, still relevant)
+2. **Anthropic premium + reasoning tier fail `scale_dependent_rendering` 0%.** Opus 4-7 and Sonnet 4-6 both miss the 3.5pt-footnote trap entirely. Haiku 4-5 passes 90%, GPT-5 100%. Mini-v2 finding from 0.2.0 — narrower than the originally-claimed "all 7 v4 traps", but real and replicated.
 
-GPT-4o falls for the original hidden-OCR trap on **10/10 cases (95% CI [72%, 100%])** — it returns the invisible PDF text-layer amount instead of the visible page amount. GPT-5 fixed most of it (80% pass). The trap and the leaderboard data are preserved at suite_hash `8ad87b8d` so historical comparisons stay valid.
+**The aggregate surprise:** Sonnet 4-6 (60.6%) underperforms Haiku 4-5 (91.2%) by 31 points on this suite. Same provider, mid-tier model is weakest — both the cheap and the premium tiers beat it.
 
 ## Quickstart (30 seconds)
 

@@ -2,6 +2,48 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.1] — 2026-05-24
+
+### Retraction — Opus 4-7 "blind spot" finding from 0.4.0 / 0.5.0
+
+**The headline finding promoted in 0.4.0 and 0.5.0 — that Claude Opus 4-7 fails 0% on every mini-v3 and mini-v4 trap family — was an evaluation artifact, not a real model failure.** Full details in [`pdfhell/research/CORRECTION_NOTICE.md`](pdfhell/research/CORRECTION_NOTICE.md).
+
+What happened: `pdfhell/vision.py` was passing `temperature=0.0` to `client.messages.create()` for every Anthropic model. The reasoning-tier Opus 4-7 rejects that parameter with a 400. The runner caught the exception, returned its string repr as the "model output", and the scorer dutifully recorded every case as `pass=0%, fell-for-trap=0%, refused=0%` — outwardly indistinguishable from a model that confidently produced a wrong, non-trap answer. The same root cause silently broke `gemini-flash-lite-latest` (gated out of the vision-capable allowlist), which is why both models reported 0% across the entire suite.
+
+**What survives:**
+
+- **`scale_dependent_rendering`** (mini-v2, 3.5pt footnote): Opus 4-7 + Sonnet 4-6 both 0/10. Real, replicates after the fix.
+- **`zero_width_space_split`** (mini-v3): Opus 4-7 + Sonnet 4-6 + Gemini-Flash-Lite 0/10. Real, replicates after the fix.
+- **`hidden_ocr_mismatch`** (mini-v1): GPT-4o still 0/10. Real, replicates after the fix.
+- **Sonnet 4-6 underperforms Haiku 4-5 by 31 points** on mini-v4-sample (60.6% vs 91.2%). Real, replicates after the fix. The Anthropic-internal anomaly is the mid-tier model, not the premium one.
+
+**What's retracted:**
+
+- The "Opus 4-7 systematic blind spot across all 7 mini-v4 trap families" headline (and the corresponding 7-row failure table) is withdrawn.
+- The "P under H₀ ≈ 5×10⁻⁷" calibration is withdrawn — Opus genuinely fails only 2 of the 7 v4 traps.
+- The original `CONFIRMATION_REPORT.md` is superseded; preserved in git history at `a325ef3` for transparency.
+
+### Fixes
+
+- **`pdfhell.vision._anthropic_call`**: omits `temperature` for `claude-opus-4-7` and `claude-opus-5+`. Older Anthropic models still receive it.
+- **`pdfhell.vision._VISION_CAPABLE`**: added `gemini-flash` and `gemini-flash-lite` family prefixes to the Google allowlist.
+
+### Observability additions (so this can't silently happen again)
+
+- **`pdfhell.scorer.CaseScore.api_error`**: new boolean distinguishing "provider call failed" from "model gave wrong answer".
+- **`pdfhell.scorer.SuiteReport.api_error_rate`**: new aggregate field. Serialised into every run JSON.
+- **`pdfhell.cli._print_report`**: prints a loud `⚠` warning + the first error message verbatim + "the pass rate above is unreliable" when `api_error_rate >= 10%`. Same warning would have caught this bug on day one.
+
+### Added — local-HF provider via ollama
+
+- **`ollama:` provider in `pdfhell.runner`**: routes through ollama's native `/api/chat` at `127.0.0.1:11434`. Supports `llama3.2-vision`, `gemma3`, `qwen2.5vl`, `minicpm-v`, `llava`, `moondream` (anything in ollama's vision-capable library). PDFs are rasterised to PNG via `pypdfium2` before sending.
+- First local-model leaderboard rows land alongside the cloud models — see the regenerated [leaderboard](https://multivon.ai/leaderboard).
+
+### Compatibility
+
+- All `suite_hash` values unchanged. All four prior leaderboards (mini-v1, v2, v3, v4) remain valid suite specs; the only thing that changed is the published *numbers* for Opus 4-7 and Gemini-Flash-Lite, which are now derived from a runner that doesn't error out on those models.
+- No breaking changes to the CLI, output JSON schema, or audit-pack format. New fields (`api_error_rate`, `api_error` per case) are additive.
+
 ## [0.5.0] — 2026-05-23
 
 ### Added — `mini-v4`: seven more agent-discovered traps + an emergent finding
