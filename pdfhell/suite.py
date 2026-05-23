@@ -111,9 +111,56 @@ def smoke_suite() -> SuiteSpec:
     )
 
 
+def mini_v2_suite() -> SuiteSpec:
+    """The ``mini-v2`` suite: 6 trap families x 30 cases = 180 cases.
+
+    Adds three trap families designed to defeat current frontier models
+    (Sonnet 4-6, Gemini-Pro variants, GPT-5.4) which had plateau'd at
+    90-97% on mini-v1:
+
+      - composite_trap: hidden_ocr + footnote + split_table in one PDF.
+        Models that pass each sub-trap >90% in isolation tend to fail
+        the composition 30-50% of the time.
+      - scale_dependent_rendering: critical value in a 3.5pt footnote
+        that blurs out at frontier-model vision raster resolutions.
+      - cross_page_coreference: ~20-page MSA with definitions on page 1
+        and a compound reference on page 20 — precision-decay on long
+        context attention is the underlying mechanism.
+
+    The three v1 families are kept at 30 cases each (3x mini-v1 sample
+    size) so the leaderboard can carry both v1 and v2 numbers side-by-
+    side, with tighter v1 confidence intervals as a bonus.
+
+    Seed ranges are non-overlapping so two cases can never share a seed
+    across families — keeps generator caching simple and prevents the
+    "same seed but different trap" debugging confusion.
+
+    Seeds reserved (by family):
+      hidden_ocr_mismatch:        1001-1030
+      footnote_override:          2001-2030
+      split_table_across_pages:   3001-3030
+      composite_trap:             4001-4030
+      scale_dependent_rendering:  5001-5030
+      cross_page_coreference:     6001-6030
+    """
+    return SuiteSpec(
+        name="mini-v2",
+        version="mini-v2",
+        traps={
+            "hidden_ocr_mismatch":       list(range(1001, 1031)),
+            "footnote_override":         list(range(2001, 2031)),
+            "split_table_across_pages":  list(range(3001, 3031)),
+            "composite_trap":            list(range(4001, 4031)),
+            "scale_dependent_rendering": list(range(5001, 5031)),
+            "cross_page_coreference":    list(range(6001, 6031)),
+        },
+    )
+
+
 SUITES: dict[str, SuiteSpec] = {
     "smoke": smoke_suite(),
     "mini": mini_suite(),
+    "mini-v2": mini_v2_suite(),
 }
 
 
