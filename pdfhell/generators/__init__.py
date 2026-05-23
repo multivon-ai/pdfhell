@@ -21,6 +21,10 @@ from .split_table_across_pages import generate as _split_table_across_pages
 from .composite_trap import generate as _composite_trap
 from .scale_dependent_rendering import generate as _scale_dependent_rendering
 from .cross_page_coreference import generate as _cross_page_coreference
+from .unicode_confusable_total import generate as _unicode_confusable_total
+from .zero_width_space_split import generate as _zero_width_space_split
+from .currency_mismatch_conversion import generate as _currency_mismatch_conversion
+from .mirrored_footer_notice import generate as _mirrored_footer_notice
 
 
 # Signature: (seed: int) -> (pdf_bytes: bytes, case: HellCase).
@@ -39,6 +43,15 @@ GENERATORS: dict[str, GeneratorFn] = {
     "composite_trap": _composite_trap,
     "scale_dependent_rendering": _scale_dependent_rendering,
     "cross_page_coreference": _cross_page_coreference,
+    # mini-v3 (2026-05-23): autoresearch-discovered. The first pdfhell
+    # generation cycle where the trap mechanisms were proposed by a
+    # rotation of strong LLMs (Opus 4-7, GPT-5, Gemini 2.5 Pro) and
+    # filtered through five validation gates. See pdfhell/research/.
+    # Each one defeats at least one model on the 8-model panel at 0%.
+    "unicode_confusable_total": _unicode_confusable_total,
+    "zero_width_space_split": _zero_width_space_split,
+    "currency_mismatch_conversion": _currency_mismatch_conversion,
+    "mirrored_footer_notice": _mirrored_footer_notice,
 }
 
 TRAP_FAMILIES: tuple[str, ...] = tuple(GENERATORS.keys())

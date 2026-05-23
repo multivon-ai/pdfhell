@@ -157,10 +157,65 @@ def mini_v2_suite() -> SuiteSpec:
     )
 
 
+def mini_v3_suite() -> SuiteSpec:
+    """The ``mini-v3`` suite: 10 trap families × 30 cases = 300 cases.
+
+    Adds four trap families *discovered by the autoresearch loop*
+    (see :mod:`pdfhell.research`) on top of mini-v2's six. Every v3
+    family was proposed by one of three rotating researcher models
+    (Opus 4-7, GPT-5, Gemini 2.5 Pro), filtered through five
+    validation gates, and shown to defeat at least one model on the
+    8-model eval panel at 0%:
+
+      - unicode_confusable_total: ASCII vs Cyrillic "O" in TOTAL row
+        labels; a disambiguation clause names which codepoint binds.
+        (Opus 4-7 fails 0/15, Haiku 4-5 passes 14/15.)
+      - zero_width_space_split: U+200B injected into the binding
+        amount fragments it in the text layer.
+        (Sonnet + Opus + Gemini-Flash-Lite all 0%.)
+      - currency_mismatch_conversion: invoice headlines a EUR total;
+        a settlement clause requires USD payment at a stated FX rate.
+        (Opus + Gemini-Flash-Lite at 0%.)
+      - mirrored_footer_notice: binding amount lives in a
+        horizontally-mirrored footer; vision-only pipelines that
+        don't un-mirror fall back to the visible decoy headline.
+        (Defeats GPT-4o + several Anthropic models.)
+
+    Seeds reserved (by family):
+      hidden_ocr_mismatch:           1001-1030
+      footnote_override:             2001-2030
+      split_table_across_pages:      3001-3030
+      composite_trap:                4001-4030
+      scale_dependent_rendering:     5001-5030
+      cross_page_coreference:        6001-6030
+      unicode_confusable_total:      7001-7030
+      zero_width_space_split:        7101-7130
+      currency_mismatch_conversion:  7201-7230
+      mirrored_footer_notice:        7301-7330
+    """
+    return SuiteSpec(
+        name="mini-v3",
+        version="mini-v3",
+        traps={
+            "hidden_ocr_mismatch":         list(range(1001, 1031)),
+            "footnote_override":           list(range(2001, 2031)),
+            "split_table_across_pages":    list(range(3001, 3031)),
+            "composite_trap":              list(range(4001, 4031)),
+            "scale_dependent_rendering":   list(range(5001, 5031)),
+            "cross_page_coreference":      list(range(6001, 6031)),
+            "unicode_confusable_total":    list(range(7001, 7031)),
+            "zero_width_space_split":      list(range(7101, 7131)),
+            "currency_mismatch_conversion": list(range(7201, 7231)),
+            "mirrored_footer_notice":      list(range(7301, 7331)),
+        },
+    )
+
+
 SUITES: dict[str, SuiteSpec] = {
     "smoke": smoke_suite(),
     "mini": mini_suite(),
     "mini-v2": mini_v2_suite(),
+    "mini-v3": mini_v3_suite(),
 }
 
 

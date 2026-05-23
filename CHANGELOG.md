@@ -2,6 +2,61 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] — 2026-05-23
+
+### Added — `mini-v3`: agent-discovered trap families
+
+**The first pdfhell release where the new trap families were discovered by an autoresearch loop, not hand-authored.** All four are proposals from the rotation of three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro) running through [`pdfhell.research`](pdfhell/research/), filtered through five validation gates, and confirmed via panel evaluation across 8 models:
+
+- **`unicode_confusable_total`** (proposed by **Claude Opus 4-7**) — Two visually-identical "TOTAL" rows. One uses ASCII "O", the other uses Cyrillic capital "О" (U+041E). A printed disambiguation clause names which codepoint is binding. Opus 4-7 fails 0/15 of its own trap. Haiku 4-5 passes 14/15. **The premium tier is not universally better at PDF reading.**
+
+- **`zero_width_space_split`** (proposed by **Gemini 2.5 Pro**) — The binding total contains a U+200B zero-width space in the text layer, fragmenting it into smaller decoy substrings. Visually correct, but text-anchored pipelines parse the fragments. Defeats Sonnet 4-6, Opus 4-7, and Gemini-Flash-Lite at 0% each — three models at 0%, three different providers.
+
+- **`currency_mismatch_conversion`** (proposed by **GPT-5**) — Invoice headlines a EUR total; a settlement clause requires USD payment at a stated FX rate. Models that grab the salient number without applying the conversion answer the EUR amount. Catches Opus 4-7 and Gemini-Flash-Lite.
+
+- **`mirrored_footer_notice`** (proposed by **GPT-5**) — The binding amount appears only in a horizontally-mirrored footer notice. Vision-only OCR pipelines that don't internally un-mirror text fall back to the visible (non-binding) headline.
+
+### Methodology
+
+All four traps were:
+1. Proposed by a single LLM call (different researcher each turn — rotation prevents single-model bias)
+2. Filtered through five gates (parseable, deterministic, answerable, forbidden-clean, lint-clean)
+3. Evaluated on a fixed 8-model panel (probe round + full round)
+4. Promoted via human curation after eyeball + consistency check
+
+Full audit trail in [`pdfhell/research/`](pdfhell/research/):
+- `results.tsv` — every candidate ever proposed (40+ rows)
+- `keep/*.json` — survivors with code + per-model results + researcher rationale
+- `budget.jsonl` — every dollar spent
+- `METHODOLOGY.md` — formal write-up of the methodology
+
+### `mini-v3` suite
+
+`mini-v3` = `mini-v2` (180 cases, 6 families × 30) + 4 new agent-discovered families × 30 seeds = **300 cases total**. `mini-v1` and `mini-v2` `suite_hash` are unchanged — historical leaderboard rows remain comparable.
+
+```bash
+uvx pdfhell run --model anthropic:claude-sonnet-4-6 --suite mini-v3
+```
+
+### Other improvements
+
+- **`pdfhell.research.report`** — CLI summarising a research run (status counts, gate-fail breakdown, spend by researcher, theme convergence, keepers ranked)
+- **`pdfhell.research.curate`** — Human-curator workflow (`--verify`, `--preview`, `--confirm`, `--confirm-all`, `--promotion-plan`)
+- **`pdfhell.research.__main__`** — `python -m pdfhell.research` lists commands
+- **43 unit tests for the research module** — `pytest tests/test_research_*.py`, all run in <0.5s with no API calls
+- **Parseable gate** falls back to pdfplumber if pypdf rejects (catches reportlab annotation quirks)
+- **Loose-equality fix** in answerable gate: `$18,400` correctly matches `$18,400.00`, handles currency-symbol variants, FX precision
+- **Researcher prompt** includes top kept candidates as positive examples for calibration
+- **Session dedupe** — agents can't re-propose the same trap_family name twice in one session
+- **`flush=True`** on all loop prints — overnight runs are observable in real time
+- **Fixed** an unused `import random` in `hidden_ocr_mismatch.py` (caught by the new ruff-clean check)
+
+### Compatibility
+
+- `mini-v1` and `mini-v2` `suite_hash` unchanged
+- All existing CLI commands, output JSON schemas, audit-pack format unchanged
+- `pdfhell.runner`, `pdfhell.scorer`, `pdfhell.case` unchanged — the research loop is read-only with respect to runtime contracts
+
 ## [0.3.0] — 2026-05-23
 
 ### Added — `pdfhell.research`: autoresearch-style discovery loop
