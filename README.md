@@ -1,5 +1,12 @@
 # PDF Hell
 
+[![PyPI](https://img.shields.io/pypi/v/pdfhell.svg)](https://pypi.org/project/pdfhell)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://pypi.org/project/pdfhell)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Downloads](https://static.pepy.tech/badge/pdfhell/month)](https://pepy.tech/project/pdfhell)
+
+**[Live leaderboard](https://multivon.ai/leaderboard)** · [Website](https://multivon.ai/pdfhell) · [PyPI](https://pypi.org/project/pdfhell) · [multivon-eval (engine)](https://github.com/multivon-ai/multivon-eval)
+
 **Adversarial PDFs that stress-test AI document readers — with procedural ground truth, not LLM-as-judge.**
 
 PDF Hell is a small, focused benchmark for three specific failure modes in AI document pipelines. Every test case is a PDF generated *from code*, so the correct answer is known exactly. There's no LLM judging another LLM's interpretation — the same complexity that fools the model isn't asked to grade it.
@@ -193,6 +200,19 @@ pip install pdfhell
 ```
 
 Bare install brings in `multivon-eval` (the engine), `reportlab` (PDF generation), `pypdf`, and the three frontier-provider SDKs (anthropic, openai, google-genai). No provider extras to remember; no GPU required.
+
+## The Multivon ecosystem
+
+Five public + one early-access package, all built on a shared evaluation engine:
+
+| Repo | What it is |
+|---|---|
+| [multivon-eval](https://github.com/multivon-ai/multivon-eval) | Python SDK — 44 evaluators + `bootstrap` CLI + `multivon_eval.auto`. PDF Hell's engine. |
+| **pdfhell** (you are here) | Adversarial PDFs that break AI document readers |
+| [multivon-mcp](https://github.com/multivon-ai/multivon-mcp) | MCP server — exposes `pdfhell_run` + `pdfhell_make` as tools to Claude / Cursor |
+| [eval-action](https://github.com/multivon-ai/eval-action) | GitHub Action — runs pdfhell + multivon-eval on every PR |
+| [eval-framework-benchmark](https://github.com/multivon-ai/eval-framework-benchmark) | Reproducible head-to-head vs DeepEval + RAGAS (text eval, not PDFs) |
+| multivon-guard *(early access)* | Local proxy that catches LLM coding agents leaking secrets / PII |
 
 ## License
 
