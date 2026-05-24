@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pdfhell"
-version = "0.5.1"
+version = "0.5.2"
 description = "PDF Hell — adversarial PDFs that break AI document readers. Procedural ground truth, not LLM-as-judge."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,7 +28,10 @@ classifiers = [
 # promises (zero-extras setup is a launch-day non-negotiable).
 # reportlab generates adversarial PDFs from code; pypdf is the read side.
 dependencies = [
-    "multivon-eval>=0.7.2",
+    # 0.9.1 is where multivon_eval.vision lives + the Anthropic
+    # reasoning-tier temperature fix lands. Older multivon-eval still
+    # works for v1/v2 traps but won't survive Opus 4-7 calls.
+    "multivon-eval>=0.9.1",
     "google-genai>=1.0",
     "reportlab>=4.0",
     "pypdf>=5.0",

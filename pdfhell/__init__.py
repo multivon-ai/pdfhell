@@ -16,7 +16,7 @@ layer; the runtime, scoring, and reporting come from multivon-eval.
 """
 from __future__ import annotations
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 from .case import HellCase
 from .generators import (

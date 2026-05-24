@@ -2,6 +2,25 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.2] — 2026-05-24
+
+Architectural cleanup: vision dispatch moves upstream to `multivon-eval>=0.9.1`. No behaviour change — every `pdfhell.vision.*` import still resolves, just to the upstream implementation now. The Opus temperature fix, the `ollama:` provider, and the per-provider content-block handling are all shared with any other multivon-eval consumer that needs to grade documents or images.
+
+### Changed
+
+- **`pdfhell.vision`** is now a ~30-line shim that re-exports `call_vision`, `JudgeUnavailable`, and the private helpers from `multivon_eval.vision`. The implementation lives at <https://github.com/multivon-ai/multivon-eval/blob/main/multivon_eval/vision.py> as of multivon-eval 0.9.1. Downstream code importing from `pdfhell.vision` continues to work without changes.
+- **`pdfhell.runner`** still constructs a duck-typed `_OllamaConfig` for the `ollama:` provider, since multivon-eval's `JudgeConfig` validation now also accepts `ollama` — either approach works.
+
+### Why
+
+Three pieces of plumbing were duplicated between pdfhell and multivon-eval — Anthropic adapter code, the Opus temperature-deprecation handling, and the model-pricing tables. The cleanup avoids the next class of "I fixed it on one side and forgot the other" silent bug.
+
+### Compatibility
+
+- Bumps `multivon-eval` dep from `>=0.7.2` to `>=0.9.1`.
+- All `suite_hash` values, CLI commands, audit-pack format unchanged.
+- 133/133 unit tests pass. Smoke-tested both `anthropic:claude-opus-4-7` and `ollama:gemma3:4b` end-to-end through the new shim.
+
 ## [0.5.1] — 2026-05-24
 
 ### Retraction — Opus 4-7 "blind spot" finding from 0.4.0 / 0.5.0
