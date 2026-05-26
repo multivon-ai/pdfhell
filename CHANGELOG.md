@@ -2,6 +2,17 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.3] — 2026-05-27
+
+### Fixed
+
+- **`pdfhell build --suite <name>` now writes to `./cases/<suite>`** instead of always `./cases/mini`. The default output directory ignored `--suite`, so `build --suite smoke` materialised the smoke cases into `./cases/mini` — a different directory than the one `run --suite smoke` reads from. The build path now tracks the suite name, matching `run`. Pass `--out` to override as before.
+
+### Docs
+
+- README "Commands" section now lists all six suites (`smoke`, `mini`, `mini-v2`, `mini-v3`, `mini-v4`, `mini-v4-sample`), the `discover` subcommand, and the `--audit-pack` flag.
+- README "Roadmap" section refreshed — it still described the 0.1 era (3 trap families / 30 cases); the current frontier suite is `mini-v4` (17 families / 510 cases).
+
 ## [0.5.2] — 2026-05-24
 
 Architectural cleanup: vision dispatch moves upstream to `multivon-eval>=0.9.1`. No behaviour change — every `pdfhell.vision.*` import still resolves, just to the upstream implementation now. The Opus temperature fix, the `ollama:` provider, and the per-provider content-block handling are all shared with any other multivon-eval consumer that needs to grade documents or images.

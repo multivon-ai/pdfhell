@@ -134,14 +134,16 @@ The current AI-eval state of the art uses an LLM-as-judge to grade another LLM's
 ## Commands
 
 ```
-pdfhell list-traps                              # list trap families
-pdfhell make --trap <family> --seed <n>         # generate one case
-pdfhell build --suite <smoke|mini> --out <dir>  # materialise a suite
+pdfhell list-traps                              # list the 17 trap families
+pdfhell discover [--compact]                    # emit capability catalog as JSON (for agents)
+pdfhell make --trap <family> --seed <n>         # generate one case (pdf + json)
+pdfhell build --suite <name> [--out <dir>]      # materialise a suite (default out: ./cases/<suite>)
 pdfhell run --model <provider>:<model>          # evaluate a model
-  [--suite smoke|mini]                          #   (default: mini)
-  [--cases-dir <dir>]                           #   (default: ./cases/<suite>)
-  [--out <path>]                                #   JSON output
+  [--suite smoke|mini|mini-v2|mini-v3|mini-v4|mini-v4-sample]  # (default: mini)
+  [--cases-dir <dir>]                           #   (default: ./cases/<suite>; built on demand)
+  [--out <path>]                                #   JSON output (default: runs/<suite>-<model>.json)
   [--junit <path>]                              #   JUnit XML for GitHub Actions / GitLab CI
+  [--audit-pack <path>]                         #   hash-chained audit ZIP (PDFs + keys + manifest)
   [--fail-threshold <0.0-1.0>]                  #   non-zero exit if pass_rate below threshold
   [--workers <n>]                               #   parallel API requests (default: 4)
   [--quiet]
@@ -213,7 +215,7 @@ Register it in `pdfhell/generators/__init__.py`. See [CONTRIBUTING.md](./CONTRIB
 
 ## Roadmap
 
-The 0.1 release is intentionally narrow — three trap families, 30 cases. Coming next:
+The current frontier suite is `mini-v4` — **17 trap families, 510 cases**, 11 of them autoresearched and human-curated (see above). Candidate families on deck, not yet validated into a suite:
 
 - `merged_table_cells` — value depends on row/column span interpretation
 - `rotated_scan` — visually legible but OCR-broken pages
@@ -223,7 +225,7 @@ The 0.1 release is intentionally narrow — three trap families, 30 cases. Comin
 - `checkbox_ambiguity` — selected vs unselected with low visual margin
 - `cross_page_citation` — answers requiring page + bounding-box citations
 
-Target full suite: 10 trap families, ~50 cases.
+Each runs through the same five validation gates as the autoresearched families before promotion into a `mini-vN` suite. File an issue to prioritize one.
 
 ## Hosted generator
 

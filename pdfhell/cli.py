@@ -93,7 +93,9 @@ def _cmd_build(args: argparse.Namespace) -> int:
         print(f"unknown suite {args.suite!r}; available: {', '.join(SUITES)}", file=sys.stderr)
         return 2
     spec = SUITES[args.suite]
-    out_dir = Path(args.out).resolve()
+    # Default output dir tracks the suite name so `build --suite smoke` writes
+    # to ./cases/smoke — the same place `run --suite smoke` looks for it.
+    out_dir = Path(args.out).resolve() if args.out else Path(f"./cases/{args.suite}").resolve()
     print(f"building suite {spec.name!r} ({spec.total_cases} cases) → {out_dir}")
     cases = build_suite(spec, out_dir)
     print(f"wrote {len(cases)} cases")
@@ -242,8 +244,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_build.add_argument(
         "--out", "--output-dir",
         dest="out",
-        default="./cases/mini",
-        help="output directory (default: ./cases/mini) — alias: --output-dir",
+        default=None,
+        help="output directory (default: ./cases/<suite>) — alias: --output-dir",
     )
     p_build.set_defaults(func=_cmd_build)
 
