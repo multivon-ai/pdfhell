@@ -2,6 +2,12 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.4] — 2026-05-28
+
+### Fixed
+
+- **`pdfhell.research` lint gate handles generators outside the package tree.** `gate_lint_clean` derived a dotted module name via `Path.relative_to(repo_root)`, which raised `ValueError` for any generator not under the package (a tmp file under test, or a candidate staged elsewhere). It now keeps dotted-module import for in-tree generators (so relative imports like `from . import _common` still resolve) and falls back to file-path loading otherwise.
+
 ## [0.5.3] — 2026-05-27
 
 ### Fixed
