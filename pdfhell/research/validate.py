@@ -16,6 +16,7 @@ curve — partial credit means the agent learns to half-pass gates.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import io
 import os
 import subprocess
@@ -402,18 +403,35 @@ def gate_lint_clean(generator_path: Path) -> GateResult:
     except subprocess.TimeoutExpired:
         return GateResult(False, "lint", "ruff timed out")
 
-    # 5b: import smoke test (catches syntax errors ruff missed +
-    # missing imports at module level)
-    rel = generator_path.relative_to(Path(__file__).resolve().parents[2])
-    module = str(rel).replace("/", ".").removesuffix(".py")
+    # 5b: import smoke test (catches syntax errors ruff missed + missing
+    # imports at module level). In-tree generators may use relative imports
+    # (`from . import _common`), so import them by dotted module name within
+    # the package. For a generator outside the package tree (e.g. a tmp file
+    # under test, or a candidate staged elsewhere), relative_to() raises
+    # ValueError — fall back to loading by file path, which still surfaces
+    # syntax/import errors.
+    pkg_root = Path(__file__).resolve().parents[2]
+    gen_resolved = generator_path.resolve()
     try:
-        # Force re-import in case the file changed since last run.
-        if module in sys.modules:
-            importlib.reload(sys.modules[module])
+        module = str(gen_resolved.relative_to(pkg_root)).replace("/", ".").removesuffix(".py")
+    except ValueError:
+        module = None
+    try:
+        if module is not None:
+            # Force re-import in case the file changed since last run.
+            if module in sys.modules:
+                importlib.reload(sys.modules[module])
+            else:
+                importlib.import_module(module)
         else:
-            importlib.import_module(module)
+            spec = importlib.util.spec_from_file_location(
+                f"_pdfhell_gate_{gen_resolved.stem}", gen_resolved
+            )
+            if spec is None or spec.loader is None:
+                return GateResult(False, "lint", f"could not load {generator_path.name}")
+            spec.loader.exec_module(importlib.util.module_from_spec(spec))
     except Exception as exc:
-        return GateResult(False, "lint", f"import {module} failed: {type(exc).__name__}: {exc}")
+        return GateResult(False, "lint", f"import {generator_path.name} failed: {type(exc).__name__}: {exc}")
 
     return GateResult(True, "lint", "ruff + import OK")
 
