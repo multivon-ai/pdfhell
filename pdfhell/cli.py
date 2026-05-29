@@ -49,12 +49,22 @@ def _cmd_discover(args: argparse.Namespace) -> int:
         "suites": [],
     }
     for trap in TRAP_FAMILIES:
-        _, example_case = GENERATORS[trap](seed=1)
-        catalog["traps"].append({
-            "name": trap,
-            "example_question": example_case.question,
-            "example_expected_answer": example_case.expected_answer,
-        })
+        try:
+            _, example_case = GENERATORS[trap](seed=1)
+            catalog["traps"].append({
+                "name": trap,
+                "example_question": example_case.question,
+                "example_expected_answer": example_case.expected_answer,
+            })
+        except Exception as exc:  # one broken generator must not kill the catalog
+            print(f"warning: skipping {trap} in catalog ({type(exc).__name__}: {exc})",
+                  file=sys.stderr)
+            catalog["traps"].append({
+                "name": trap,
+                "example_question": None,
+                "example_expected_answer": None,
+                "error": f"{type(exc).__name__}: {exc}",
+            })
     for name, spec in SUITES.items():
         catalog["suites"].append({
             "name": name,
@@ -150,17 +160,30 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 
 def _cmd_report(args: argparse.Namespace) -> int:
-    raw = json.loads(Path(args.run).read_text(encoding="utf-8"))
-    report = SuiteReport(
-        model=raw["model"],
-        suite=raw["suite"],
-        n=raw["n"],
-        pass_rate=raw["pass_rate"],
-        per_trap_pass=raw["per_trap_pass"],
-        per_trap_fell_for_trap=raw["per_trap_fell_for_trap"],
-        refused_rate=raw["refused_rate"],
-        cases=[],  # not needed for printing the summary
-    )
+    try:
+        raw = json.loads(Path(args.run).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"error: could not read {args.run!r} as JSON ({type(exc).__name__}: {exc})",
+              file=sys.stderr)
+        return 2
+    try:
+        report = SuiteReport(
+            model=raw["model"],
+            suite=raw["suite"],
+            n=raw["n"],
+            pass_rate=raw["pass_rate"],
+            per_trap_pass=raw["per_trap_pass"],
+            per_trap_fell_for_trap=raw["per_trap_fell_for_trap"],
+            refused_rate=raw["refused_rate"],
+            cases=[],  # not needed for printing the summary
+        )
+    except (KeyError, TypeError) as exc:
+        print(
+            f"error: {args.run!r} is missing fields expected in a pdfhell run JSON "
+            f"({type(exc).__name__}: {exc}). Regenerate with `pdfhell run --out …`.",
+            file=sys.stderr,
+        )
+        return 2
     _print_report(report)
     return 0
 

@@ -59,16 +59,21 @@ def parse_model_spec(spec: str) -> JudgeConfig:
     # budgets either produce empty responses or truncate mid-sentence.
     # 2k is sufficient headroom in practice.
 
-    # multivon-eval's JudgeConfig only whitelists the three cloud
-    # providers. For locally-hosted models served via ollama we use a
-    # duck-typed config that has the same field names — vision.py only
-    # reads .provider, .model, .temperature and doesn't depend on the
-    # multivon-eval class.
     if provider == "ollama":
-        from dataclasses import dataclass as _dc, field as _field
+        from dataclasses import dataclass as _dc
 
         @_dc(slots=True)
         class _OllamaConfig:
+            """Local-model judge config that quacks like multivon-eval's JudgeConfig.
+
+            multivon-eval's :class:`JudgeConfig` only whitelists the three cloud
+            providers (anthropic / openai / google) via a strict choices check.
+            For locally-hosted models served via Ollama we duck-type a config
+            with the same field names so :func:`multivon_eval.vision.call_vision`
+            (which only reads ``.provider``, ``.model``, ``.temperature``,
+            ``.max_tokens``) accepts it transparently — without having to
+            patch the upstream provider whitelist.
+            """
             provider: str
             model: str
             temperature: float = 0.0
@@ -100,7 +105,7 @@ def _ask_model(job: _Job, judge: JudgeConfig) -> tuple[HellCase, str]:
         prompt=job.case.question,
         sources=[str(job.pdf_path)],
         judge=judge,
-        max_tokens=judge.max_tokens or 2048,
+        max_tokens=judge.max_tokens,
     )
     return job.case, answer.strip()
 
