@@ -5,6 +5,8 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Downloads](https://static.pepy.tech/badge/pdfhell/month)](https://pepy.tech/project/pdfhell)
 
+> Powered by [multivon-eval](https://github.com/multivon-ai/multivon-eval) — the same calibration-first engine that found κ=0.03 across three eval frameworks.
+
 **[Live leaderboard](https://multivon.ai/leaderboard)** · [Website](https://multivon.ai/pdfhell) · [PyPI](https://pypi.org/project/pdfhell) · [multivon-eval (engine)](https://github.com/multivon-ai/multivon-eval)
 
 **Adversarial PDFs that stress-test AI document readers — with procedural ground truth, not LLM-as-judge.**
@@ -75,7 +77,7 @@ open ./cases/unicode_confusable_total-7001.pdf
 - ✅ GPT-5.4 fixes most of it (80% pass on hidden OCR).
 - ❌ "Claude leads" — Sonnet's CI [83%, 99%] overlaps with Gemini's [78%, 98%]. Statistically indistinguishable on n=30.
 
-Suite hash: `8ad87b8d` (mini-v1). Raw run JSON at <https://github.com/multivon-ai/multivon-web/tree/main/public/data/pdfhell-runs>.
+Suite hash: `8ad87b8d` (mini-v1). Per-model run JSON is published on the [live leaderboard](https://multivon.ai/leaderboard) — click any row to inspect the raw evaluation output.
 
 ## Mini-v4: 17 trap families, 510 cases — the current frontier
 
