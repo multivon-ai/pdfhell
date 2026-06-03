@@ -107,7 +107,7 @@ A *useful* trap is one where the best model can do it ≥70% of the time and the
 Two overnight runs ($43.97 + ~$0.62 + $45 confirmation = **$89 total**) produced 11 surviving trap families. The agent does not get to merge its own work — every kept candidate sits in `keep/` until a human curator promotes it. See [`METHODOLOGY.md`](pdfhell/research/METHODOLOGY.md) for the formal write-up, [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for the validation pass.
 
 ```bash
-pip install 'pdfhell[research]>=0.5.0'
+pip install 'pdfhell[research]>=0.5.4'
 python -m pdfhell.research.loop --budget 50 --max-candidates 200
 python -m pdfhell.research.report                      # see what was discovered
 python -m pdfhell.research.curate --promotion-plan     # propose merge to next mini-vN
