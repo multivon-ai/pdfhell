@@ -92,6 +92,41 @@ def gate_parseable(pdf_bytes: bytes) -> GateResult:
     return GateResult(False, "parseable", f"pypdf: {pypdf_err}")
 
 
+# Substitution glyphs that betray an unencodable character: a generator
+# that draws a codepoint outside the font's encoding gets a visible tofu
+# box on the page (and a substitute char in the text layer) instead of
+# what it intended. The zero_width_space_split family shipped exactly
+# this bug for five releases — "visually normal" with a black box in the
+# Grand Total (issue #8). The five original gates were text/code-level
+# and structurally could not catch a rendering artifact.
+_SUBSTITUTION_CHARS = "\u25a0\u25a1\ufffd"  # ■ □ �
+
+
+def gate_glyph_clean(pdf_bytes: bytes) -> GateResult:
+    """No substitution/tofu glyphs in the extracted text.
+
+    Generators that *intend* visual transformations do them with canvas
+    transforms (mirror_image_glyphs, upside_down_amount), which keep the
+    text layer in ordinary characters — so this gate is safe for them.
+    """
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+        text = "".join(page.extract_text() or "" for page in reader.pages)
+    except Exception as exc:
+        return GateResult(False, "glyph_clean",
+                          f"could not extract text: {type(exc).__name__}: {exc}")
+    bad = sorted({ch for ch in text if ch in _SUBSTITUTION_CHARS})
+    if bad:
+        return GateResult(
+            False, "glyph_clean",
+            f"substitution glyph(s) {bad!r} in extracted text — a drawn "
+            f"string contains characters the font cannot encode; the page "
+            f"shows a tofu box where the generator thinks its text is",
+        )
+    return GateResult(True, "glyph_clean", "no substitution glyphs")
+
+
 # ─── Gate 2: deterministic ─────────────────────────────────────────────
 
 
@@ -478,6 +513,10 @@ def run_all_gates(
         return results
 
     results.append(gate_parseable(pdf_bytes))
+    if not results[-1]:
+        return results
+
+    results.append(gate_glyph_clean(pdf_bytes))
     if not results[-1]:
         return results
 

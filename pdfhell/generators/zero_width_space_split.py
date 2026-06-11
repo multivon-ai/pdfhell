@@ -1,12 +1,24 @@
 from __future__ import annotations
 
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
 from ..case import HellCase
 from . import _common as C
 
-# Zero-width space, U+200B. A non-printing character that can break tokenization.
-_ZWSP = "\u200b"
+# Trap mechanics (since 0.6.1): the Grand Total is drawn as TWO adjacent
+# text runs ("$99" + ",051.90") at the exact pen position — visually
+# seamless, but text extractors fragment the number at the run boundary
+# (pypdf yields "$99\n,051.90"). This is the real-world failure mode the
+# family targets: a number that is intact to the eye and broken to a
+# text-layer reader.
+#
+# History: 0.x-0.6.0 injected a literal U+200B into the drawn string.
+# That was doubly broken — Helvetica/WinAnsi has no ZWSP glyph, so the
+# page rendered a visible black tofu box AND the extracted text carried a
+# substitute character, not a zero-width space. Found by the pixels-only
+# modality on its first run; see issue #8. Same-seed PDFs from this
+# family therefore differ between <=0.6.0 and >=0.6.1.
 
 _VENDORS = [
     "Quantum Leap Innovations",
@@ -32,12 +44,10 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
     real_str_clean = C.fmt_money(real_total)
     decoy_str = C.fmt_money(decoy_total)
 
-    # Inject the zero-width space into the real total string.
-    # e.g., "$123,456.78" -> "$12\u200b3,456.78"
-    # This position is chosen to be non-obvious but also likely to break parsing.
-    # Split after the dollar sign and one or two digits.
+    # Split the real total into two runs after the dollar sign and one or
+    # two digits — non-obvious, and guaranteed to land mid-number.
     split_point = rng.randint(2, 3)
-    real_str_split = real_str_clean[:split_point] + _ZWSP + real_str_clean[split_point:]
+    run_a, run_b = real_str_clean[:split_point], real_str_clean[split_point:]
 
     case_id = f"zero_width_space_split-{seed:04d}"
     question = (
@@ -79,11 +89,15 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
         c.drawRightString(500, y, decoy_str)
         y -= 25
 
-        # Draw the real total as "Grand Total" using the split string.
-        # Visually, it will look perfectly normal.
+        # Draw the real total as "Grand Total" in two adjacent runs at the
+        # exact pen position: pixel-identical to one run, fragmented in the
+        # text layer.
         c.setFont("Helvetica-Bold", 16)
         c.drawString(300, y, "Grand Total:")
-        c.drawRightString(500, y, real_str_split)
+        total_w = stringWidth(real_str_clean, "Helvetica-Bold", 16)
+        start_x = 500 - total_w
+        c.drawString(start_x, y, run_a)
+        c.drawString(start_x + stringWidth(run_a, "Helvetica-Bold", 16), y, run_b)
         y -= 40
 
         C.draw_paragraph(
@@ -112,11 +126,12 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
             "invoice_no": invoice_no,
             "real_total": real_total,
             "decoy_total": decoy_total,
-            "split_string": real_str_split.replace(_ZWSP, "[ZWSP]"),
+            "split_runs": [run_a, run_b],
             "expected_failure_mode": (
-                "Model's text extraction pipeline fails to handle the zero-width space "
-                "(U+200B) in the 'Grand Total', fragmenting the number. It then falls back "
-                "to the smaller, textually-intact 'Subtotal' decoy amount."
+                "Model's text extraction pipeline fragments the 'Grand Total' at the "
+                "text-run boundary (extractors yield e.g. '$99' / ',051.90' as separate "
+                "tokens). It then falls back to the smaller, textually-intact "
+                "'Subtotal' decoy amount."
             ),
             "diagnostic": (
                 "Visually, the 'Grand Total' is unambiguous. A text-extraction-only "

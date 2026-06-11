@@ -21,9 +21,9 @@ PDF Hell is a small, focused benchmark for three specific failure modes in AI do
 |---|---:|---|
 | `openai:gpt-5` | **94.7%** | — |
 | `anthropic:claude-haiku-4-5` | 91.2% | — |
-| `google:gemini-flash-lite-latest` | 88.8% | 0% on `zero_width_space_split` |
-| `openai:gpt-4o` | 81.2% | **0% on `hidden_ocr_mismatch`** (v1 finding holds) |
-| `anthropic:claude-opus-4-7` | 79.4% | **0% on `scale_dependent_rendering` + `zero_width_space_split`** |
+| `google:gemini-flash-lite-latest` | 88.8% | 0% on `zero_width_space_split`† |
+| `openai:gpt-4o` | 81.2% | **0% on `hidden_ocr_mismatch`** (v1 finding holds)‡ |
+| `anthropic:claude-opus-4-7` | 79.4% | **0% on `scale_dependent_rendering`‡ + `zero_width_space_split`†** |
 | `google:gemini-2.5-pro` | 67.1% | 0% on `mirror_image_glyphs`, `mirrored_footer_notice`, `shaded_box_binding_rule` |
 | `anthropic:claude-sonnet-4-6` | 60.6% | 0% on 6 traps including `mirror_image_glyphs`, `upside_down_amount`, `color_grounding_trap` |
 | `google:gemini-2.5-flash` | 59.4% | 0% on `mirror_image_glyphs`, `em_dash_minus_sign`, `mirrored_footer_notice` |
@@ -35,6 +35,27 @@ PDF Hell is a small, focused benchmark for three specific failure modes in AI do
 2. **Anthropic premium + reasoning tier fail `scale_dependent_rendering` 0%.** Opus 4-7 and Sonnet 4-6 both miss the 3.5pt-footnote trap entirely. Haiku 4-5 passes 90%, GPT-5 100%. Mini-v2 finding from 0.2.0 — narrower than the originally-claimed "all 7 v4 traps", but real and replicated.
 
 **The aggregate surprise:** Sonnet 4-6 (60.6%) underperforms Haiku 4-5 (91.2%) by 31 points on this suite. Same provider, mid-tier model is weakest — both the cheap and the premium tiers beat it.
+
+> † `zero_width_space_split` ≤0.6.0 rendered a visible tofu box where it claimed to be "visually normal" — these 0% rows measured response to visibly corrupted text, not an invisible-character trap. The family was redesigned in 0.6.1 (and `unicode_confusable_total` with it, same bug class). Details: [#8](https://github.com/multivon-ai/pdfhell/issues/8).
+> ‡ Cross-modality twin runs (2026-06-12, [#1](https://github.com/multivon-ai/pdfhell/issues/1)) show both ‡ findings are **PDF-ingestion failures, not vision failures**: pixels-only, gpt-4o passes `hidden_ocr_mismatch` 100% and Opus passes `scale_dependent_rendering` 100%. See the cross-modality section below.
+
+## Cross-modality: what the text layer gives and takes (2026-06-12)
+
+Same 170 cases, same day, two input modalities — the PDF itself vs locally-rasterised pixels (`--pixels`, 150 dpi). Zero API errors in all six runs.
+
+| Model | PDF | Pixels-only @150dpi | Δ |
+|---|---:|---:|---:|
+| `anthropic:claude-haiku-4-5` | 91.2% | 58.2% | **−33.0** |
+| `openai:gpt-4o` | 81.2% | 60.0% | −21.2 |
+| `anthropic:claude-opus-4-7` | 80.0% | **85.9%** | **+5.9** |
+
+Three things the twin reveals that neither column shows alone:
+
+1. **gpt-4o's famous `hidden_ocr_mismatch` 0% is text-layer trust, not blindness.** Pixels-only it scores 100%. The model reads the lying text layer when offered one.
+2. **Opus's two published 0% blind spots both invert on pixels** (`scale_dependent_rendering` 0%→100%). Opus is a *stronger pixel reader than PDF reader* — the only model of the three that improves when the text layer is taken away.
+3. **Haiku's 91.2% was substantially text-layer-mediated.** On pixels it collapses −33 points, scoring 0% on four visual-transformation traps (`mirror_image_glyphs`, `mirrored_footer_notice`, `scale_dependent_rendering`, `upside_down_amount`) that it "passed" by reading the text stream — where the transformed content sits in plain reading order.
+
+The methodological point: a benchmark that sends PDFs to provider APIs measures the **ingestion pipeline as much as the model**. The per-modality columns separate the two. Raw run JSONs: [`published_runs/2026-06-12-cross-modality/`](published_runs/2026-06-12-cross-modality/).
 
 ## Quickstart (30 seconds)
 

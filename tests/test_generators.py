@@ -85,3 +85,28 @@ def test_split_table_forbidden_is_an_adjacent_column():
     # Both expected and forbidden are dollar strings of similar shape.
     assert case.expected_answer.startswith("$")
     assert case.forbidden_answers[0].startswith("$")
+
+
+@pytest.mark.parametrize("trap", TRAP_FAMILIES)
+def test_no_substitution_glyphs_in_any_family(trap: str):
+    """Every drawn string must be encodable in its font.
+
+    An unencodable codepoint renders as a visible tofu box (and a
+    substitute char in the text layer) — zero_width_space_split shipped
+    exactly this for five releases before the pixels-only modality
+    caught it (issue #8). Transform-based traps (mirror/upside-down)
+    keep ordinary chars in the text layer, so this is safe for them.
+    """
+    import io
+    from pypdf import PdfReader
+
+    pdf_bytes, _case = generate_case(trap, 7001)
+    text = "".join(
+        page.extract_text() or ""
+        for page in PdfReader(io.BytesIO(pdf_bytes)).pages
+    )
+    bad = sorted({ch for ch in text if ch in "■□�"})
+    assert not bad, (
+        f"{trap}: substitution glyph(s) {bad!r} in extracted text — "
+        f"a drawn string contains characters the font cannot encode"
+    )

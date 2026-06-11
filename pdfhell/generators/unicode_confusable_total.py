@@ -1,22 +1,24 @@
-"""Trap family: unicode confusable in the binding total.
+"""Trap family: confusable glyph in the binding total's label.
 
-The page shows an invoice with multiple line-item totals. Two candidate
-'TOTAL' rows appear: one labeled with a normal ASCII 'TOTAL', another
-labeled with a visually-identical 'TОTAL' where the 'O' is the
-Cyrillic capital O (U+041E). Visually a human cannot distinguish them;
-they must rely on a disambiguating clause in plain text that says: 'The
-binding total is the row whose label contains only ASCII Latin
-characters.' (or its inverse).
+The page shows an invoice with two candidate 'TOTAL' rows: one labeled
+with the word TOTAL spelled entirely with letters, another labeled
+'T0TAL' where the O is the DIGIT ZERO (U+0030). In Helvetica-Bold the
+two glyphs are easy to skim past and hard to discriminate at a glance;
+a disambiguating clause in plain text states which row is binding.
 
-Text-extraction pipelines and strong models that inspect raw bytes can
-tell the two rows apart trivially. Vision-only pipelines (and models
-that over-rely on the rasterised image) cannot distinguish the labels
-and must guess, often picking the first or larger number.
+Text-extraction pipelines can tell the two rows apart trivially (the
+codepoints differ). Vision pipelines must do careful glyph-level
+discrimination — exactly the skill OCR confusions punish in the wild.
+The question is procedurally fair: a careful human can zoom in, spot
+the zero, and apply the clause.
 
-The question is procedurally fair: a careful human reading the
-document's vector text (e.g. selecting text in a PDF viewer) can copy
-the two TOTAL labels, see the codepoint difference, and apply the
-disambiguating rule.
+History: through 0.6.0 this family used the Cyrillic capital O
+(U+041E) and claimed the labels were "visually identical". They were
+not — Helvetica's WinAnsi encoding has no Cyrillic glyphs, so the page
+rendered a visible tofu box ("T■TAL:") and even the extracted text
+carried the substitute character, never a Cyrillic codepoint. Found by
+the pixels-only modality + the glyph_clean gate (issue #8). Same-seed
+PDFs differ between <=0.6.0 and >=0.6.1.
 """
 from __future__ import annotations
 
@@ -34,9 +36,6 @@ _VENDORS = [
     "Ironvale Logistics LLC",
 ]
 
-# Cyrillic capital O = U+041E (looks like Latin O)
-_CYR_O = "\u041e"
-
 
 def generate(seed: int) -> tuple[bytes, HellCase]:
     rng = C.rng_for(seed)
@@ -47,42 +46,41 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
     amount_a = round(rng.uniform(8000, 25000), 2)
     amount_b = round(amount_a * rng.uniform(1.4, 2.2), 2)
 
-    # Randomise which label (ASCII vs Cyrillic) is the binding one and
+    # Randomise which label (letter vs digit-zero) is the binding one and
     # which amount is on which row.
-    ascii_is_binding = rng.random() < 0.5
-    ascii_on_top = rng.random() < 0.5
+    letter_is_binding = rng.random() < 0.5
+    letter_on_top = rng.random() < 0.5
 
     # Assign amounts to labels independently of position.
     if rng.random() < 0.5:
-        ascii_amount, cyr_amount = amount_a, amount_b
+        letter_amount, zero_amount = amount_a, amount_b
     else:
-        ascii_amount, cyr_amount = amount_b, amount_a
+        letter_amount, zero_amount = amount_b, amount_a
 
-    binding_amount = ascii_amount if ascii_is_binding else cyr_amount
-    decoy_amount = cyr_amount if ascii_is_binding else ascii_amount
+    binding_amount = letter_amount if letter_is_binding else zero_amount
+    decoy_amount = zero_amount if letter_is_binding else letter_amount
 
     binding_str = C.fmt_money(binding_amount)
     decoy_str = C.fmt_money(decoy_amount)
 
-    ascii_label = "TOTAL"
-    cyr_label = f"T{_CYR_O}TAL"  # visually identical
+    letter_label = "TOTAL"
+    zero_label = "T0TAL"  # digit zero in place of the letter O
 
     # The disambiguating clause names which label is binding.
-    if ascii_is_binding:
+    if letter_is_binding:
         rule_clause = (
             "For the avoidance of doubt: the binding amount is the row whose "
-            "label 'TOTAL' is written entirely in ASCII Latin characters "
-            "(Unicode block Basic Latin). Any visually-similar label whose "
-            "letters include codepoints from the Cyrillic block (e.g. U+041E) "
-            "is a non-binding reference value retained from a prior draft."
+            "label 'TOTAL' is spelled entirely with letters. Any "
+            "similar-looking label containing the digit zero (0, U+0030) in "
+            "place of the letter O is a non-binding reference value retained "
+            "from a prior draft."
         )
     else:
         rule_clause = (
             "For the avoidance of doubt: the binding amount is the row whose "
-            "label is written using the Cyrillic capital letter O (U+041E) in "
-            "place of the Latin O. Any label written entirely in ASCII Latin "
-            "characters is a non-binding reference value retained from a "
-            "prior draft."
+            "label is written with the digit zero (0, U+0030) in place of "
+            "the letter O. Any label spelled entirely with letters is a "
+            "non-binding reference value retained from a prior draft."
         )
 
     case_id = f"unicode_confusable_total-{seed:04d}"
@@ -109,20 +107,20 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
         y = 600
         c.setFont("Helvetica", 11)
         c.drawString(72, y, "Engagement services (current period)")
-        c.drawRightString(500, y, C.fmt_money(round(ascii_amount * 0.6, 2)))
+        c.drawRightString(500, y, C.fmt_money(round(letter_amount * 0.6, 2)))
         y -= 18
         c.drawString(72, y, "Engagement services (prior-draft reconciliation)")
-        c.drawRightString(500, y, C.fmt_money(round(cyr_amount * 0.6, 2)))
+        c.drawRightString(500, y, C.fmt_money(round(zero_amount * 0.6, 2)))
         y -= 24
 
         c.line(380, y + 12, 500, y + 12)
 
-        # Two TOTAL rows; identical-looking labels.
+        # Two TOTAL rows; near-identical labels.
         top_label, top_amount = (
-            (ascii_label, ascii_amount) if ascii_on_top else (cyr_label, cyr_amount)
+            (letter_label, letter_amount) if letter_on_top else (zero_label, zero_amount)
         )
         bot_label, bot_amount = (
-            (cyr_label, cyr_amount) if ascii_on_top else (ascii_label, ascii_amount)
+            (zero_label, zero_amount) if letter_on_top else (letter_label, letter_amount)
         )
 
         c.setFont("Helvetica-Bold", 14)
@@ -157,16 +155,16 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
         metadata={
             "vendor": vendor,
             "invoice_no": invoice_no,
-            "ascii_is_binding": ascii_is_binding,
-            "ascii_on_top": ascii_on_top,
-            "ascii_amount": ascii_amount,
-            "cyr_amount": cyr_amount,
+            "letter_is_binding": letter_is_binding,
+            "letter_on_top": letter_on_top,
+            "letter_amount": letter_amount,
+            "zero_amount": zero_amount,
             "binding_amount": binding_amount,
             "decoy_amount": decoy_amount,
             "expected_failure_mode": (
-                "Vision-only models cannot distinguish ASCII 'O' from "
-                "Cyrillic 'O' in the rendered glyphs and so cannot apply "
-                "the disambiguation rule; they pick the wrong TOTAL row."
+                "Models skim past the digit zero in 'T0TAL' (or cannot "
+                "discriminate the 0 vs O glyphs in the render) and so cannot "
+                "apply the disambiguation rule; they pick the wrong TOTAL row."
             ),
         },
     )
