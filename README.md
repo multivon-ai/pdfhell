@@ -41,19 +41,27 @@ PDF Hell is a small, focused benchmark for three specific failure modes in AI do
 
 ## Cross-modality: what the text layer gives and takes (2026-06-12)
 
-Same 170 cases, same day, two input modalities — the PDF itself vs locally-rasterised pixels (`--pixels`, 150 dpi). Zero API errors in all six runs.
+Same 170 cases, two input modalities — the PDF itself vs locally-rasterised pixels (`--pixels`, 150 dpi). Full 8-model panel (PDF column: 2026-05-24 published runs; haiku/gpt-4o/opus were re-run same-day 2026-06-12 and landed within 0.6pp of the published numbers, validating the comparison). Max api_error_rate across all eight pixels runs: 0.6%.
 
 | Model | PDF | Pixels-only @150dpi | Δ |
 |---|---:|---:|---:|
+| `openai:gpt-5` | **94.7%** | 67.6% | −27.1 |
 | `anthropic:claude-haiku-4-5` | 91.2% | 58.2% | **−33.0** |
+| `google:gemini-flash-lite-latest` | 88.8% | 60.6% | −28.2 |
 | `openai:gpt-4o` | 81.2% | 60.0% | −21.2 |
-| `anthropic:claude-opus-4-7` | 80.0% | **85.9%** | **+5.9** |
+| `anthropic:claude-opus-4-7` | 79.4% | **85.9%** | **+6.5** |
+| `google:gemini-2.5-pro` | 67.1% | 72.9% | +5.8 |
+| `anthropic:claude-sonnet-4-6` | 60.6% | 62.9% | +2.3 |
+| `google:gemini-2.5-flash` | 59.4% | 65.3% | +5.9 |
 
-Three things the twin reveals that neither column shows alone:
+**The ranking nearly inverts.** Every PDF-modality leader collapses on pixels (−21 to −33); every PDF-modality laggard *improves* (+2 to +6). Pixels-only, the order becomes Opus 85.9% > Gemini 2.5 Pro 72.9% > GPT-5 67.6% > the rest. What the twin reveals:
 
 1. **gpt-4o's famous `hidden_ocr_mismatch` 0% is text-layer trust, not blindness.** Pixels-only it scores 100%. The model reads the lying text layer when offered one.
 2. **Opus's two published 0% blind spots both invert on pixels** (`scale_dependent_rendering` 0%→100%). Opus is a *stronger pixel reader than PDF reader* — the only model of the three that improves when the text layer is taken away.
 3. **Haiku's 91.2% was substantially text-layer-mediated.** On pixels it collapses −33 points, scoring 0% on four visual-transformation traps (`mirror_image_glyphs`, `mirrored_footer_notice`, `scale_dependent_rendering`, `upside_down_amount`) that it "passed" by reading the text stream — where the transformed content sits in plain reading order.
+4. **The "Sonnet anomaly" is explained.** Sonnet's mysterious 31-point gap below Haiku was never a capability gap: its PDF score (60.6%) ≈ its pixels score (62.9%) — Sonnet was already reading pixels — while Haiku's lead came from the text layer. Same provider, two different ingestion behaviors.
+
+Caveat: `gemini-2.5-pro` refused 11.2% of pixels cases (refusals score as fails).
 
 The methodological point: a benchmark that sends PDFs to provider APIs measures the **ingestion pipeline as much as the model**. The per-modality columns separate the two. Raw run JSONs: [`published_runs/2026-06-12-cross-modality/`](published_runs/2026-06-12-cross-modality/).
 
