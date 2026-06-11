@@ -43,7 +43,11 @@ PDF Hell is a small, focused benchmark for three specific failure modes in AI do
 export GOOGLE_API_KEY=...
 uvx pdfhell run --model google:gemini-2.5-flash --suite smoke
 
-# Headline-reproducing: watch Opus 4-7 fall apart on mini-v4 (~$30, ~10 min)
+# Headline-reproducing: the published leaderboard numbers (mini-v4-sample,
+# n=170 — same suite the headline finding above uses; ~$10, ~5 min)
+uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4-sample
+
+# Full suite (n=510) if you want tighter CIs (~$30, ~10 min)
 uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4
 
 # Or run your own autoresearch loop to discover new traps

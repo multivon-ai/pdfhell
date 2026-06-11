@@ -192,7 +192,10 @@ def _print_report(report: SuiteReport) -> None:
     print(f"PDF Hell {report.suite} suite — n={report.n}")
     print()
     print(f"model: {report.model}")
-    print(f"pass: {sum(1 for _ in report.cases if _.correct) if report.cases else int(report.pass_rate * report.n)}/{report.n}  ({report.pass_rate:.1%})")
+    passes = (sum(1 for c in report.cases if c.correct) if report.cases
+              else int(round(report.pass_rate * report.n)))
+    ci_lo, ci_hi = report.pass_rate_ci
+    print(f"pass: {passes}/{report.n}  ({report.pass_rate:.1%}, 95% CI [{ci_lo:.1%}, {ci_hi:.1%}])")
     print(f"refused: {report.refused_rate:.1%}")
 
     # Loud warning when API errors are non-trivial. A pass_rate computed
