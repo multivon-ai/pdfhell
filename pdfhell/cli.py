@@ -126,15 +126,20 @@ def _cmd_run(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             return 2
 
-    print(f"running {args.model} against {args.suite} suite at {cases_dir}")
+    modality = "pixels" if args.pixels else "pdf"
+    mode_note = f" [pixels-only @ {args.dpi} dpi]" if args.pixels else ""
+    print(f"running {args.model} against {args.suite} suite at {cases_dir}{mode_note}")
     report = run_suite(
         cases_dir=cases_dir,
         model_spec=args.model,
         workers=args.workers,
         progress=not args.quiet,
         suite_name=args.suite,
+        modality=modality,
+        raster_dpi=args.dpi if args.pixels else None,
     )
-    out_path = Path(args.out).resolve() if args.out else _default_run_path(args.model, args.suite)
+    out_path = (Path(args.out).resolve() if args.out
+                else _default_run_path(args.model, args.suite, modality=modality))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
     print()
@@ -176,6 +181,9 @@ def _cmd_report(args: argparse.Namespace) -> int:
             per_trap_fell_for_trap=raw["per_trap_fell_for_trap"],
             refused_rate=raw["refused_rate"],
             cases=[],  # not needed for printing the summary
+            modality=raw.get("modality", "pdf"),
+            raster_dpi=raw.get("raster_dpi"),
+            pdfium_build=raw.get("pdfium_build", ""),
         )
     except (KeyError, TypeError) as exc:
         print(
@@ -192,6 +200,10 @@ def _print_report(report: SuiteReport) -> None:
     print(f"PDF Hell {report.suite} suite — n={report.n}")
     print()
     print(f"model: {report.model}")
+    if report.modality == "pixels":
+        build = f", pdfium {report.pdfium_build}" if report.pdfium_build else ""
+        print(f"modality: pixels-only @ {report.raster_dpi} dpi{build}  "
+              f"← NOT comparable with pdf-modality runs")
     passes = (sum(1 for c in report.cases if c.correct) if report.cases
               else int(round(report.pass_rate * report.n)))
     ci_lo, ci_hi = report.pass_rate_ci
@@ -231,9 +243,12 @@ def _print_report(report: SuiteReport) -> None:
         print(f"  {trap:30s}  pass={rate:.0%}  fell-for-trap={fell:.0%}")
 
 
-def _default_run_path(model_spec: str, suite: str) -> Path:
+def _default_run_path(model_spec: str, suite: str, *, modality: str = "pdf") -> Path:
     safe = model_spec.replace("/", "-").replace(":", "-")
-    return Path(f"runs/{suite}-{safe}.json").resolve()
+    # Pixels runs get their own filename so the two modalities never
+    # silently clobber each other.
+    tag = "-pixels" if modality == "pixels" else ""
+    return Path(f"runs/{suite}-{safe}{tag}.json").resolve()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -285,6 +300,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="dir with materialised cases (default: ./cases/<suite>; built on demand if missing)",
     )
     p_run.add_argument("--workers", type=int, default=4)
+    p_run.add_argument(
+        "--pixels", action="store_true",
+        help="pixels-only modality: rasterise each PDF locally and send PNG "
+             "pages instead of the PDF, so the provider never sees the text "
+             "layer. Needs pypdfium2 (pip install 'pdfhell[pixels]'). "
+             "Numbers are NOT comparable across modalities — the report "
+             "records modality + dpi.")
+    p_run.add_argument(
+        "--dpi", type=int, default=150,
+        help="raster resolution for --pixels (default: 150). DPI is part of "
+             "the experimental setup; published numbers must state it.")
     p_run.add_argument("--quiet", action="store_true")
     p_run.add_argument("--out", help="output JSON path (default: runs/<suite>-<model>.json)")
     p_run.add_argument(

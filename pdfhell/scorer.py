@@ -249,6 +249,13 @@ class SuiteReport:
     cases: list[CaseScore] = field(default_factory=list)
     suite_version: str = ""  # e.g. "mini-v1" — see pdfhell.suite.SuiteSpec.version
     suite_hash: str = ""  # 8-char SHA-256 prefix of the sorted (trap, seed) pairs
+    # Input modality: "pdf" sends the PDF (provider may read the text
+    # layer, render pixels, or both); "pixels" sends locally-rasterised
+    # PNGs so a verdict is attributable to vision alone. Never compare
+    # numbers across modalities without saying so.
+    modality: str = "pdf"
+    raster_dpi: int | None = None  # set only for modality="pixels"
+    pdfium_build: str = ""  # rasteriser build, recorded for honesty
 
     # ─── Confidence intervals ──────────────────────────────────────────────
 
@@ -291,6 +298,9 @@ class SuiteReport:
             "per_trap_fell_for_trap": self.per_trap_fell_for_trap,
             "refused_rate": self.refused_rate,
             "api_error_rate": self.api_error_rate,
+            "modality": self.modality,
+            "raster_dpi": self.raster_dpi,
+            "pdfium_build": self.pdfium_build,
             "cases": [c.to_dict() for c in self.cases],
         }
 

@@ -42,6 +42,8 @@ dependencies = [
 # is kept for backward-compat with pip install 'pdfhell[all]' commands
 # that might appear in older docs.
 all = []
+# Pixels-only modality (`pdfhell run --pixels`) rasterises PDFs locally.
+pixels = ["pypdfium2>=4.0", "Pillow>=10.0"]
 # Research loop (pdfhell.research) needs the provider SDKs as
 # *direct* deps to drive the researcher rotation + text-only verifier
 # calls bypassing multivon-eval's adapter layer.

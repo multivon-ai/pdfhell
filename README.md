@@ -61,6 +61,32 @@ open ./cases/unicode_confusable_total-7001.pdf
 
 `pdfhell run` builds the suite on first use, sends each PDF to the vision model, and grades the answer against code-based ground truth — no LLM judging another LLM.
 
+### Pixels-only mode (`--pixels`)
+
+By default the provider receives the PDF itself and may read the embedded
+text layer, render pixels, or both — that's provider-opaque. `--pixels`
+rasterises each page locally (pypdfium2, default 150 dpi, `--dpi` to
+override) and sends only PNG images, so a pass or fail is attributable to
+vision alone:
+
+```bash
+pip install 'pdfhell[pixels]'
+pdfhell run --model anthropic:claude-haiku-4-5 --suite smoke --pixels
+```
+
+The run JSON records `modality`, `raster_dpi`, and the pdfium build —
+pdf-modality and pixels-modality numbers are **not comparable** and the
+report says so. The PDF stays the byte-identical reproducible artifact;
+PNGs are derived inputs (pixel determinism across pypdfium2 versions is
+not claimed, which is why the build is recorded). DPI is part of the
+experimental setup: a 3.5pt footnote is ~7px tall at 150 dpi.
+
+Why this exists: for traps like `hidden_ocr_mismatch`, where the text
+layer deliberately disagrees with the rendered glyphs, the two modalities
+answer different questions — "what does the pipeline read?" vs "what does
+the model see?" Side-by-side columns are coming to the leaderboard
+([#1](https://github.com/multivon-ai/pdfhell/issues/1)).
+
 ## Mini-v1 leaderboard (8 models, 30 cases)
 
 | Model | Pass rate | 95% CI | Hidden OCR | Footnote | Split table |
@@ -89,14 +115,15 @@ Suite hash: `8ad87b8d` (mini-v1). Per-model run JSON is published on the [live l
 
 Run it: `uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4`. Live leaderboard: <https://multivon.ai/leaderboard>.
 
-**Key findings on mini-v4:**
+**Key findings on mini-v4 (corrected — see retraction notice at the top):**
 
-- ✅ **Opus 4-7 blind spot.** Combined n ≈ 280 Opus calls across 7 v4 traps, zero successes. P(under H₀ with 5% true pass) ≈ 5×10⁻⁷. Validated independently — see [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md).
-- ✅ **Premium tier is not universally better.** Haiku 4-5 (cheapest Anthropic model) beats Opus 4-7 (most expensive) on 6 of 7 v4 traps.
-- ✅ **Convergent signal across researchers.** Opus, GPT-5, and Gemini 2.5 Pro independently proposed traps that catch Opus — not a single-model artifact.
-- ❌ "Opus is bad" — false. Opus is excellent at many things. It has a specific failure mode on multi-step procedural rules embedded in PDF documents.
+- ⚠ **Retracted:** the original headline ("Opus 4-7 fails all 7 v4 traps, n ≈ 280, zero successes, P ≈ 5×10⁻⁷") was an eval artifact — every Opus call had failed with a `temperature deprecated` API error that was silently scored as a wrong answer. [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) documents the original (wrong) validation and is superseded by [`CORRECTION_NOTICE.md`](pdfhell/research/CORRECTION_NOTICE.md).
+- ✅ **What survives correction:** Opus 4-7 scores 79.4% overall on mini-v4-sample, with two real 0/10 blind spots — `scale_dependent_rendering` (shared with Sonnet 4-6) and `zero_width_space_split` (shared with Gemini Flash Lite).
+- ✅ **Premium tier is not universally better.** Haiku 4-5 (91.2%) — the cheapest Anthropic model — beats Opus 4-7 (79.4%) by 11.8 points overall, and Sonnet 4-6 (60.6%) by 30.6.
+- ✅ **Convergent discovery.** Opus, GPT-5, and Gemini 2.5 Pro rotated as autoresearchers; all 11 promoted v3/v4 families passed five validation gates and fresh-seed replication. The discovery pipeline survives the correction — it was the *runner's error scoring*, not the traps, that was broken.
+- ❌ "Opus is bad" — false. Opus is excellent at many things. It has two specific, replicated failure modes on this suite.
 
-Full audit trail in [`pdfhell/research/`](pdfhell/research/) — `results.tsv` (every candidate proposed), `keep/*.json` (every survivor with code), `budget.jsonl` (every cent), `METHODOLOGY.md`, `CONFIRMATION_REPORT.md`.
+Full audit trail in [`pdfhell/research/`](pdfhell/research/) — `results.tsv` (every candidate proposed), `keep/*.json` (every survivor with code), `budget.jsonl` (every cent), `METHODOLOGY.md`, `CORRECTION_NOTICE.md` (authoritative), `CONFIRMATION_REPORT.md` (retained, superseded).
 
 ## How traps get discovered
 

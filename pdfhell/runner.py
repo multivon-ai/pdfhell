@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
@@ -93,6 +93,13 @@ def parse_model_spec(spec: str) -> JudgeConfig:
 class _Job:
     case: HellCase
     pdf_path: Path
+    # What is actually sent to the model: [pdf_path] for the default
+    # modality, rasterised PNG page paths for --pixels.
+    sources: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.sources:
+            self.sources = [str(self.pdf_path)]
 
 
 def _ask_model(job: _Job, judge: JudgeConfig) -> tuple[HellCase, str]:
@@ -103,7 +110,7 @@ def _ask_model(job: _Job, judge: JudgeConfig) -> tuple[HellCase, str]:
     """
     answer = call_vision(
         prompt=job.case.question,
-        sources=[str(job.pdf_path)],
+        sources=job.sources,
         judge=judge,
         max_tokens=judge.max_tokens,
     )
@@ -117,6 +124,8 @@ def run_suite(
     workers: int = 4,
     progress: bool = True,
     suite_name: str = "mini",
+    modality: str = "pdf",
+    raster_dpi: int | None = None,
 ) -> SuiteReport:
     """Evaluate every case under ``cases_dir`` against ``model_spec``.
 
@@ -131,6 +140,22 @@ def run_suite(
     jobs = list(_load_jobs(cases_dir))
     if not jobs:
         raise FileNotFoundError(f"no cases found in {cases_dir}")
+    pdfium = ""
+    if modality == "pixels":
+        # Rasterise up front (sequential, local, fast) so worker threads
+        # only do network I/O and the cache is written exactly once.
+        from .raster import DEFAULT_DPI, pdfium_build, rasterize_pdf
+        dpi = raster_dpi or DEFAULT_DPI
+        raster_dpi = dpi
+        pdfium = pdfium_build()
+        if progress:
+            print(f"  rasterising {len(jobs)} case(s) at {dpi} dpi "
+                  f"(pixels-only modality; pdfium {pdfium})")
+        for job in jobs:
+            pages = rasterize_pdf(job.pdf_path, dpi=dpi)
+            job.sources = [str(p) for p in pages]
+    elif modality != "pdf":
+        raise ValueError(f"unknown modality {modality!r}; use 'pdf' or 'pixels'")
     scores: list[CaseScore] = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(_ask_model, job, judge): job for job in jobs}
@@ -152,6 +177,9 @@ def run_suite(
                 mark = "✓" if score.correct else ("⚠" if score.fell_for_trap else "✗")
                 print(f"  {mark} {score.case_id:36s}  expected={score.expected!r:30s}  got={answer[:60]!r}")
     report = summarise(model_spec, suite_name, scores)
+    report.modality = modality
+    report.raster_dpi = raster_dpi if modality == "pixels" else None
+    report.pdfium_build = pdfium
     spec = SUITES.get(suite_name)
     if spec is not None:
         report.suite_version = spec.version
