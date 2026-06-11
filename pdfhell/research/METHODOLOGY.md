@@ -5,6 +5,21 @@
 > *Working draft. The numbers will change as overnight runs accumulate;
 > the methodology will not.*
 
+> **Addendum, 2026-06-12 (pdfhell 0.6.1, issue
+> [#8](https://github.com/multivon-ai/pdfhell/issues/8)):** the
+> `unicode_confusable_total` implementation described in this note
+> (Abstract, §3.2) — ASCII "O" vs Cyrillic "О" U+041E — was found invalid:
+> Helvetica/WinAnsi has no Cyrillic glyphs, so the "visually identical"
+> decoy actually rendered a visible tofu box (`T■TAL:`). The family was
+> redesigned in 0.6.1 to a digit-zero confusable (`T0TAL:` vs `TOTAL:`),
+> and a sixth validation gate (`glyph_clean`) was added precisely because
+> the five gates described in §2.3 are text/code-level and structurally
+> could not catch a rendering artifact. The Opus 4-7 0/15 result below
+> applies to the retired implementation only — Opus passes the redesigned
+> family 90% on the PDF modality (published re-run, 2026-06-12,
+> `published_runs/2026-06-12-cross-modality/`). The historical text below
+> is preserved unchanged; see `CORRECTION_NOTICE.md` (0.6.1 addendum).
+
 ---
 
 ## Abstract
@@ -206,6 +221,10 @@ The gates collectively prevented 4 invalid candidates from reaching
 the expensive full-eval round, saving ~$8 in panel-call cost.
 
 ### 3.2 The first discovery: `unicode_confusable_total`
+
+> **2026-06-12 note:** this section describes the retired ≤0.6.0 Cyrillic
+> implementation, which rendered a visible tofu box (issue #8) — see the
+> 0.6.1 addendum at the top of this document.
 
 Proposed by **Claude Opus 4-7** (anthropic). Verbatim rationale:
 

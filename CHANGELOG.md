@@ -2,6 +2,73 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.1] — 2026-06-12
+
+### Fixed — two trap families rendered visible tofu boxes where they claimed visual normality
+
+Found by the pixels-only modality on its first run ([#8](https://github.com/multivon-ai/pdfhell/issues/8)). Helvetica's WinAnsi encoding has no ZWSP or Cyrillic glyphs, so:
+
+- **`zero_width_space_split`** drew `Grand Total: $99■,051.90` — and even the
+  text layer carried the substitute character, never a U+200B. Redesigned: the
+  total is now two adjacent text runs at the exact pen position —
+  pixel-identical to a single run, fragmented by extractors (`$99` /
+  `,051.90`), the real-world failure mode the family targets.
+- **`unicode_confusable_total`** drew `T■TAL:` for its "visually identical"
+  Cyrillic decoy. Redesigned: digit-zero confusable (`T0TAL:` vs `TOTAL:`),
+  WinAnsi-safe and genuinely subtle.
+
+### Added
+
+- **`glyph_clean` validation gate** (now six gates) + a per-family test
+  pinning the invariant: no substitution glyphs in any family's extracted
+  text. The five original gates were text/code-level and structurally could
+  not catch a rendering artifact.
+- **First cross-modality twin runs published** (same 170 cases, PDF vs
+  `--pixels`, same-day, max api_error_rate 0.6%): gpt-4o
+  `hidden_ocr_mismatch` 0%→100% pixels-only, Opus 4-7
+  `scale_dependent_rendering` 0%→100%, Haiku 4-5 91.2%→58.2% overall. README
+  cross-modality section + raw run JSONs in
+  `published_runs/2026-06-12-cross-modality/`.
+
+### Compatibility
+
+- **Same-seed PDFs for `zero_width_space_split` and `unicode_confusable_total`
+  differ between ≤0.6.0 and ≥0.6.1.** Runs of these two families are not
+  comparable across that boundary; the published 2026-06-12 re-runs use the
+  redesigned families (suite hash `a451ce10`).
+- All other families, CLI commands, output JSON schemas, and audit-pack
+  format unchanged.
+
+## [0.6.0] — 2026-06-12
+
+### Added — pixels-only modality (`--pixels`)
+
+By default the provider receives the PDF itself and may read the embedded
+text layer, render pixels, or both — provider-opaque. `--pixels` rasterises
+each page locally (pypdfium2, default 150 dpi, `--dpi` to override) and sends
+only PNG images, so a pass or fail is attributable to vision alone
+([#1](https://github.com/multivon-ai/pdfhell/issues/1)).
+
+- Run JSON and `report` output record `modality`, `raster_dpi`, and the
+  pdfium build (pixel determinism across pypdfium2 versions is not claimed,
+  which is why the build is recorded). The PDF stays the byte-identical
+  reproducible artifact; PNGs are derived inputs.
+- PDF and pixels runs land at different default output paths, and the report
+  marks pdf-modality and pixels-modality numbers as **not comparable**.
+- Install the rasteriser with `pip install 'pdfhell[pixels]'`.
+
+### Docs / fixes also in this release
+
+- README mini-v4 key-findings block corrected — it still asserted the
+  retracted Opus claim (n≈280, zero successes) as a checked finding and cited
+  the superseded `CONFIRMATION_REPORT.md` as validation; rewritten against
+  the corrected leaderboard numbers only.
+- `run`/`report` output now prints the Wilson 95% CI; quickstart uses
+  `mini-v4-sample`.
+- Fixed 404 leaderboard data link, added multivon-eval attribution, tightened
+  the research-extra pip pin, small resilience + cleanup fixes from the
+  ecosystem audit.
+
 ## [0.5.4] — 2026-05-28
 
 ### Fixed

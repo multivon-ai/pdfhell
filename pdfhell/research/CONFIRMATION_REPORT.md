@@ -5,6 +5,8 @@
 
 **Budget:** ~$30 cap (first 7 traps), then ~$15 more for the remaining 4 = **~$45 total confirmation spend**, on top of the $44 research loop = $89 total to discover + validate 11 trap families.
 
+> **2026-06-12 note:** the "$44 research loop = $89 total" arithmetic above under-counts the committed audit log: `budget.jsonl` records **$54.00** across five sessions ($6.71 + $2.21 + $0.62 + $0.49 + $43.97), including the early sessions that discovered `unicode_confusable_total`. With the ~$45 confirmation spend the all-in total is **≈$99**, not $89. The historical text above is preserved unchanged.
+
 **Reproducibility:** `python -m pdfhell.research.curate --confirm-all --budget-cap 30 --cases 20` (followed by `--confirm <id>` for any traps the cap skipped).
 
 ---
@@ -65,6 +67,8 @@ The trap *mechanism* is sound. The trap's *discrimination signal* is identical (
 *(The full Original vs Confirmation per-model table for each trap is below.)*
 ## `unicode_confusable_total`
 
+> **2026-06-12 note:** these numbers measured the retired ≤0.6.0 Cyrillic implementation, which rendered a visible tofu box (`T■TAL:`, issue #8); the family was redesigned in 0.6.1 (digit-zero `T0TAL`) and Opus passes the redesigned family 90% on PDF modality — see `CORRECTION_NOTICE.md` (0.6.1 addendum).
+
 - **Proposed by:** anthropic:claude-opus-4-7
 - **Rationale:** Targets a gap between vector-text codepoint awareness and pixel-only reading. Two identical-looking 'TOTAL' rows differ only by ASCII O vs Cyrillic U+041E; a printed clause says which codepoint is binding. Models that read raw text (or strong reasoners) resolve it; vision-only or weaker models can't
 - **Original n:** 15, **Confirmation n:** 20
@@ -124,6 +128,8 @@ The trap *mechanism* is sound. The trap's *discrimination signal* is identical (
 
 
 ## `zero_width_space_split`
+
+> **2026-06-12 note:** these numbers measured the retired ≤0.6.0 implementation, which rendered a visible tofu box instead of an invisible U+200B (issue #8); the family was redesigned in 0.6.1 — Opus's 0% replicated on the redesigned family (PDF re-run, 2026-06-12), other models' rows await re-runs. See `CORRECTION_NOTICE.md` (0.6.1 addendum).
 
 - **Proposed by:** google:gemini-2.5-pro
 - **Rationale:** Targets text-extraction pipelines that improperly handle zero-width space characters (U+200B), leading to number fragmentation. The real amount is rendered visually correctly but contains a ZWSP in the text layer. Vision-centric models should read the pixels and succeed. Text-anchored models with br

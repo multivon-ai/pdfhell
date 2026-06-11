@@ -57,7 +57,7 @@ Same 170 cases, two input modalities — the PDF itself vs locally-rasterised pi
 **The ranking nearly inverts.** Every PDF-modality leader collapses on pixels (−21 to −33); every PDF-modality laggard *improves* (+2 to +6). Pixels-only, the order becomes Opus 85.9% > Gemini 2.5 Pro 72.9% > GPT-5 67.6% > the rest. What the twin reveals:
 
 1. **gpt-4o's famous `hidden_ocr_mismatch` 0% is text-layer trust, not blindness.** Pixels-only it scores 100%. The model reads the lying text layer when offered one.
-2. **Opus's two published 0% blind spots both invert on pixels** (`scale_dependent_rendering` 0%→100%). Opus is a *stronger pixel reader than PDF reader* — the only model of the three that improves when the text layer is taken away.
+2. **Opus's `scale_dependent_rendering` 0% fully inverts on pixels (0%→100%); its `zero_width_space_split` 0% improves but does not flip (0%→30%).** Opus is a *stronger pixel reader than PDF reader* — the only model of the three that improves when the text layer is taken away.
 3. **Haiku's 91.2% was substantially text-layer-mediated.** On pixels it collapses −33 points, scoring 0% on four visual-transformation traps (`mirror_image_glyphs`, `mirrored_footer_notice`, `scale_dependent_rendering`, `upside_down_amount`) that it "passed" by reading the text stream — where the transformed content sits in plain reading order.
 4. **The "Sonnet anomaly" is explained.** Sonnet's mysterious 31-point gap below Haiku was never a capability gap: its PDF score (60.6%) ≈ its pixels score (62.9%) — Sonnet was already reading pixels — while Haiku's lead came from the text layer. Same provider, two different ingestion behaviors.
 
@@ -140,14 +140,14 @@ Suite hash: `8ad87b8d` (mini-v1). Per-model run JSON is published on the [live l
 
 ## Mini-v4: 17 trap families, 510 cases — the current frontier
 
-`mini-v4` extends `mini-v1` (3 families) and `mini-v2` (3 more frontier-targeting families) with **11 trap families autoresearched and validated by `pdfhell.research`** — 4 from mini-v3 and 7 from mini-v4. All 11 were proposed by a rotation of three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro), passed five validation gates, and survived fresh-seed re-evaluation. Total discovery + validation spend: **$89**.
+`mini-v4` extends `mini-v1` (3 families) and `mini-v2` (3 more frontier-targeting families) with **11 trap families autoresearched and validated by `pdfhell.research`** — 4 from mini-v3 and 7 from mini-v4. All 11 were proposed by a rotation of three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro), passed five validation gates, and survived fresh-seed re-evaluation. Total discovery + validation spend: **≈$99** — $54.00 of logged research-loop spend across five sessions ([`budget.jsonl`](pdfhell/research/budget.jsonl)) + ~$45 confirmation.
 
 Run it: `uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4`. Live leaderboard: <https://multivon.ai/leaderboard>.
 
 **Key findings on mini-v4 (corrected — see retraction notice at the top):**
 
 - ⚠ **Retracted:** the original headline ("Opus 4-7 fails all 7 v4 traps, n ≈ 280, zero successes, P ≈ 5×10⁻⁷") was an eval artifact — every Opus call had failed with a `temperature deprecated` API error that was silently scored as a wrong answer. [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) documents the original (wrong) validation and is superseded by [`CORRECTION_NOTICE.md`](pdfhell/research/CORRECTION_NOTICE.md).
-- ✅ **What survives correction:** Opus 4-7 scores 79.4% overall on mini-v4-sample, with two real 0/10 blind spots — `scale_dependent_rendering` (shared with Sonnet 4-6) and `zero_width_space_split` (shared with Gemini Flash Lite).
+- ✅ **What survives correction:** Opus 4-7 scores 79.4% overall on mini-v4-sample, with two real 0/10 blind spots — `scale_dependent_rendering` (shared with Sonnet 4-6) and `zero_width_space_split`† (re-confirmed 0/10 for Opus on the redesigned 0.6.1 family in the 2026-06-12 PDF re-run; Gemini Flash Lite's 0% predates the redesign and awaits a re-run).
 - ✅ **Premium tier is not universally better.** Haiku 4-5 (91.2%) — the cheapest Anthropic model — beats Opus 4-7 (79.4%) by 11.8 points overall, and Sonnet 4-6 (60.6%) by 30.6.
 - ✅ **Convergent discovery.** Opus, GPT-5, and Gemini 2.5 Pro rotated as autoresearchers; all 11 promoted v3/v4 families passed five validation gates and fresh-seed replication. The discovery pipeline survives the correction — it was the *runner's error scoring*, not the traps, that was broken.
 - ❌ "Opus is bad" — false. Opus is excellent at many things. It has two specific, replicated failure modes on this suite.
@@ -164,7 +164,7 @@ score = (pass_max - pass_min) × novelty   if pass_max >= 0.7   else 0
 
 A *useful* trap is one where the best model can do it ≥70% of the time and the worst model can't — gated by novelty against existing keepers so we don't keep redundant discriminators. Three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro) rotate as the researcher; every proposal passes five validation gates (parseable, deterministic, answerable, forbidden-clean, lint-clean) before any vision-eval spend.
 
-Two overnight runs ($43.97 + ~$0.62 + $45 confirmation = **$89 total**) produced 11 surviving trap families. The agent does not get to merge its own work — every kept candidate sits in `keep/` until a human curator promotes it. See [`METHODOLOGY.md`](pdfhell/research/METHODOLOGY.md) for the formal write-up, [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for the validation pass.
+The research loop spent **$54.00** across five logged sessions — a $6.71 first demo run, three short interim sessions ($2.21 + $0.62 + $0.49), and the $43.97 overnight run, every cent in [`budget.jsonl`](pdfhell/research/budget.jsonl) — plus ~$45 of fresh-seed confirmation, **≈$99 total**, and produced 11 surviving trap families. The agent does not get to merge its own work — every kept candidate sits in `keep/` until a human curator promotes it. See [`METHODOLOGY.md`](pdfhell/research/METHODOLOGY.md) for the formal write-up, [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for the validation pass.
 
 ```bash
 pip install 'pdfhell[research]>=0.5.4'
