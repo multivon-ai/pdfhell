@@ -25,8 +25,8 @@
 ## Abstract
 
 We adapt Andrej Karpathy's [`autoresearch`](https://github.com/karpathy/autoresearch)
-single-objective optimization loop to the problem of **adversarial PDF
-benchmark generation for vision-language models**. Instead of
+single-objective optimization loop to the problem of adversarial PDF
+benchmark generation for vision-language models. Instead of
 minimising a training loss, we maximise a *discrimination score* over
 a fixed eval panel of 8 frontier vision LLMs (Anthropic, OpenAI,
 Google). Candidate trap-family generators are proposed by a rotation
@@ -66,7 +66,7 @@ Hand authoring has two failure modes:
 
 Discriminative search addresses both: a population of researcher
 models proposes diverse mechanisms, and the search objective rewards
-**model disagreement** rather than absolute difficulty. A trap that
+model disagreement rather than absolute difficulty. A trap that
 everyone fails is useless; a trap that 70% of the panel passes but
 30% catastrophically fails is a *signal*.
 
@@ -118,10 +118,10 @@ reasoning models at each turn:
 | GPT-5 | | ✓ | |
 | Gemini 2.5 Pro | | | ✓ |
 
-This diversifies the exploration. Empirically, we observe **convergent
-signals**: when multiple researchers independently propose similar
+This diversifies the exploration. Empirically, we observe convergent
+signals: when multiple researchers independently propose similar
 mechanisms (e.g., both Opus and GPT-5 went after "mirrored text" in
-the first demo run), the underlying failure mode is robust evidence
+the first demo run), the underlying failure mode is strong evidence
 of a real blind spot.
 
 ### 2.3 Validation gates

@@ -1,8 +1,8 @@
 # `pdfhell.research` — discriminative search for new trap families
 
 A self-play loop that discovers new adversarial PDF traps by directly
-optimising for **disagreement among current frontier vision-language
-models**.
+optimising for disagreement among current frontier vision-language
+models.
 
 Inspired by Andrej Karpathy's
 [`autoresearch`](https://github.com/karpathy/autoresearch) — same

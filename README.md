@@ -11,7 +11,7 @@
 
 **Adversarial PDFs that stress-test AI document readers — with procedural ground truth, not LLM-as-judge.**
 
-PDF Hell is a small, focused benchmark for three specific failure modes in AI document pipelines. Every test case is a PDF generated *from code*, so the correct answer is known exactly. There's no LLM judging another LLM's interpretation — the same complexity that fools the model isn't asked to grade it.
+PDF Hell is a small benchmark for specific failure modes in AI document pipelines. Every test case is a PDF generated *from code*, so the correct answer is known exactly, and the complexity that fools the model is never asked to grade it.
 
 ## The headline finding (mini-v4-sample, 2026-05-24)
 
@@ -28,16 +28,16 @@ PDF Hell is a small, focused benchmark for three specific failure modes in AI do
 | `anthropic:claude-sonnet-4-6` | 60.6% | 0% on 6 traps including `mirror_image_glyphs`, `upside_down_amount`, `color_grounding_trap` |
 | `google:gemini-2.5-flash` | 59.4% | 0% on `mirror_image_glyphs`, `em_dash_minus_sign`, `mirrored_footer_notice` |
 
-**Two real, narrower findings that survive correction:**
+Two narrower findings survive the correction:
 
-1. **GPT-4o blind spot on hidden OCR.** Falls for `hidden_ocr_mismatch` 10/10. GPT-5 fixed most of it (80% pass). Mini-v1 finding from 0.1.0 still holds.
+1. GPT-4o falls for `hidden_ocr_mismatch` 10/10. GPT-5 fixed most of it (80% pass). This is the mini-v1 finding from 0.1.0, and it still holds.
 
-2. **Anthropic premium + reasoning tier fail `scale_dependent_rendering` 0%.** Opus 4-7 and Sonnet 4-6 both miss the 3.5pt-footnote trap entirely. Haiku 4-5 passes 90%, GPT-5 100%. Mini-v2 finding from 0.2.0 — narrower than the originally-claimed "all 7 v4 traps", but real and replicated.
+2. Opus 4-7 and Sonnet 4-6 both fail `scale_dependent_rendering` (the 3.5pt-footnote trap) at 0%, while Haiku 4-5 passes 90% and GPT-5 100%. The mini-v2 finding from 0.2.0, narrower than the originally-claimed "all 7 v4 traps" but real and replicated.
 
-**The aggregate surprise:** Sonnet 4-6 (60.6%) underperforms Haiku 4-5 (91.2%) by 31 points on this suite. Same provider, mid-tier model is weakest — both the cheap and the premium tiers beat it.
+The aggregate held a surprise of its own: Sonnet 4-6 (60.6%) underperforms Haiku 4-5 (91.2%) by 31 points on this suite. Same provider, and the mid-tier model is the weakest of the three; both the cheap and the premium tiers beat it.
 
-> † `zero_width_space_split` ≤0.6.0 rendered a visible tofu box where it claimed to be "visually normal" — these 0% rows measured response to visibly corrupted text, not an invisible-character trap. The family was redesigned in 0.6.1 (and `unicode_confusable_total` with it, same bug class) and re-measured across the 8-model panel on 2026-06-12: **Opus's 0/10 survives the redesign** (every other model: 100%); Flash-Lite's 0% does not (artifact). New finding on the redesigned confusable: Gemini 2.5 Pro 20%. Raw runs: [`published_runs/2026-06-12-redesigned-families/`](published_runs/2026-06-12-redesigned-families/). Details: [#8](https://github.com/multivon-ai/pdfhell/issues/8).
-> ‡ Cross-modality twin runs (2026-06-12, [#1](https://github.com/multivon-ai/pdfhell/issues/1)) show both ‡ findings are **PDF-ingestion failures, not vision failures**: pixels-only, gpt-4o passes `hidden_ocr_mismatch` 100% and Opus passes `scale_dependent_rendering` 100%. See the cross-modality section below.
+> † `zero_width_space_split` ≤0.6.0 rendered a visible tofu box where it claimed to be "visually normal", so these 0% rows measured response to visibly corrupted text rather than an invisible-character trap. The family was redesigned in 0.6.1 (and `unicode_confusable_total` with it, same bug class) and re-measured across the 8-model panel on 2026-06-12: Opus's 0/10 survives the redesign (every other model: 100%); Flash-Lite's 0% does not (artifact). New finding on the redesigned confusable: Gemini 2.5 Pro 20%. Raw runs: [`published_runs/2026-06-12-redesigned-families/`](published_runs/2026-06-12-redesigned-families/). Details: [#8](https://github.com/multivon-ai/pdfhell/issues/8).
+> ‡ Cross-modality twin runs (2026-06-12, [#1](https://github.com/multivon-ai/pdfhell/issues/1)) show both ‡ findings are PDF-ingestion failures, not vision failures: pixels-only, gpt-4o passes `hidden_ocr_mismatch` 100% and Opus passes `scale_dependent_rendering` 100%. See the cross-modality section below.
 
 ## Cross-modality: what the text layer gives and takes (2026-06-12)
 
@@ -54,16 +54,16 @@ Same 170 cases, two input modalities — the PDF itself vs locally-rasterised pi
 | `anthropic:claude-sonnet-4-6` | 60.6% | 62.9% | +2.3 |
 | `google:gemini-2.5-flash` | 59.4% | 65.3% | +5.9 |
 
-**The ranking nearly inverts.** Every PDF-modality leader collapses on pixels (−21 to −33); every PDF-modality laggard *improves* (+2 to +6). Pixels-only, the order becomes Opus 85.9% > Gemini 2.5 Pro 72.9% > GPT-5 67.6% > the rest. What the twin reveals:
+The ranking nearly inverts: every PDF-modality leader collapses on pixels (−21 to −33) and every laggard *improves* (+2 to +6). Pixels-only, the order becomes Opus 85.9% > Gemini 2.5 Pro 72.9% > GPT-5 67.6% > the rest. What the twin reveals:
 
-1. **gpt-4o's famous `hidden_ocr_mismatch` 0% is text-layer trust, not blindness.** Pixels-only it scores 100%. The model reads the lying text layer when offered one.
-2. **Opus's `scale_dependent_rendering` 0% fully inverts on pixels (0%→100%); its `zero_width_space_split` 0% improves but does not flip (0%→30%).** Opus is a *stronger pixel reader than PDF reader* — the only model of the three that improves when the text layer is taken away.
-3. **Haiku's 91.2% was substantially text-layer-mediated.** On pixels it collapses −33 points, scoring 0% on four visual-transformation traps (`mirror_image_glyphs`, `mirrored_footer_notice`, `scale_dependent_rendering`, `upside_down_amount`) that it "passed" by reading the text stream — where the transformed content sits in plain reading order.
-4. **The "Sonnet anomaly" is explained.** Sonnet's mysterious 31-point gap below Haiku was never a capability gap: its PDF score (60.6%) ≈ its pixels score (62.9%) — Sonnet was already reading pixels — while Haiku's lead came from the text layer. Same provider, two different ingestion behaviors.
+1. gpt-4o's famous `hidden_ocr_mismatch` 0% is text-layer trust, not blindness. Pixels-only it scores 100%. The model reads the lying text layer when offered one.
+2. Opus's `scale_dependent_rendering` 0% fully inverts on pixels (0%→100%); its `zero_width_space_split` 0% improves but does not flip (0%→30%). Of the three, Opus is the only model that gets *better* when the text layer is taken away: a stronger pixel reader than PDF reader.
+3. Haiku's 91.2% was substantially text-layer-mediated. On pixels it collapses −33 points, scoring 0% on four visual-transformation traps (`mirror_image_glyphs`, `mirrored_footer_notice`, `scale_dependent_rendering`, `upside_down_amount`) that it "passed" by reading the text stream, where the transformed content sits in plain reading order.
+4. And the "Sonnet anomaly" is explained. Sonnet's mysterious 31-point gap below Haiku was never a capability gap. Its PDF score (60.6%) ≈ its pixels score (62.9%) — Sonnet was already reading pixels — while Haiku's lead came from the text layer. Same provider, two different ingestion behaviors.
 
 Caveat: `gemini-2.5-pro` refused 11.2% of pixels cases (refusals score as fails).
 
-The methodological point: a benchmark that sends PDFs to provider APIs measures the **ingestion pipeline as much as the model**. The per-modality columns separate the two. Raw run JSONs: [`published_runs/2026-06-12-cross-modality/`](published_runs/2026-06-12-cross-modality/).
+The methodological point: a benchmark that sends PDFs to provider APIs measures the ingestion pipeline as much as the model. The per-modality columns separate the two. Raw run JSONs: [`published_runs/2026-06-12-cross-modality/`](published_runs/2026-06-12-cross-modality/).
 
 ## Quickstart (30 seconds)
 
@@ -88,7 +88,7 @@ uvx pdfhell make --trap unicode_confusable_total --seed 7001
 open ./cases/unicode_confusable_total-7001.pdf
 ```
 
-`pdfhell run` builds the suite on first use, sends each PDF to the vision model, and grades the answer against code-based ground truth — no LLM judging another LLM.
+`pdfhell run` builds the suite on first use, sends each PDF to the vision model, and grades the answer against the value the generator chose when it drew the PDF.
 
 ### Pixels-only mode (`--pixels`)
 
@@ -103,8 +103,8 @@ pip install 'pdfhell[pixels]'
 pdfhell run --model anthropic:claude-haiku-4-5 --suite smoke --pixels
 ```
 
-The run JSON records `modality`, `raster_dpi`, and the pdfium build —
-pdf-modality and pixels-modality numbers are **not comparable** and the
+The run JSON records `modality`, `raster_dpi`, and the pdfium build;
+pdf-modality and pixels-modality numbers are not comparable and the
 report says so. The PDF stays the byte-identical reproducible artifact;
 PNGs are derived inputs (pixel determinism across pypdfium2 versions is
 not claimed, which is why the build is recorded). DPI is part of the
@@ -140,23 +140,23 @@ Suite hash: `8ad87b8d` (mini-v1). Per-model run JSON is published on the [live l
 
 ## Mini-v4: 17 trap families, 510 cases — the current frontier
 
-`mini-v4` extends `mini-v1` (3 families) and `mini-v2` (3 more frontier-targeting families) with **11 trap families autoresearched and validated by `pdfhell.research`** — 4 from mini-v3 and 7 from mini-v4. All 11 were proposed by a rotation of three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro), passed five validation gates, and survived fresh-seed re-evaluation. Total discovery + validation spend: **≈$99** — $54.00 of logged research-loop spend across five sessions ([`budget.jsonl`](pdfhell/research/budget.jsonl)) + ~$45 confirmation.
+`mini-v4` extends `mini-v1` (3 families) and `mini-v2` (3 more frontier-targeting families) with 11 trap families autoresearched and validated by `pdfhell.research` — 4 from mini-v3 and 7 from mini-v4. All 11 were proposed by a rotation of three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro), passed five validation gates, and survived fresh-seed re-evaluation. Total discovery + validation spend: ≈$99, of which $54.00 is logged research-loop spend across five sessions ([`budget.jsonl`](pdfhell/research/budget.jsonl)) + ~$45 confirmation.
 
 Run it: `uvx pdfhell run --model anthropic:claude-opus-4-7 --suite mini-v4`. Live leaderboard: <https://multivon.ai/leaderboard>.
 
 **Key findings on mini-v4 (corrected — see retraction notice at the top):**
 
 - ⚠ **Retracted:** the original headline ("Opus 4-7 fails all 7 v4 traps, n ≈ 280, zero successes, P ≈ 5×10⁻⁷") was an eval artifact — every Opus call had failed with a `temperature deprecated` API error that was silently scored as a wrong answer. [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) documents the original (wrong) validation and is superseded by [`CORRECTION_NOTICE.md`](pdfhell/research/CORRECTION_NOTICE.md).
-- ✅ **What survives correction:** Opus 4-7 scores 79.4% overall on mini-v4-sample, with two real 0/10 blind spots — `scale_dependent_rendering` (shared with Sonnet 4-6) and `zero_width_space_split`† (Opus 0/10 **confirmed on the redesigned 0.6.1 family** — 7 of 8 panel models score 100% on it, so the blind spot is Opus-specific and real; Gemini Flash Lite's old 0% measured the retired tofu-box artifact and is withdrawn).
-- ✅ **Premium tier is not universally better.** Haiku 4-5 (91.2%) — the cheapest Anthropic model — beats Opus 4-7 (79.4%) by 11.8 points overall, and Sonnet 4-6 (60.6%) by 30.6.
-- ✅ **Convergent discovery.** Opus, GPT-5, and Gemini 2.5 Pro rotated as autoresearchers; all 11 promoted v3/v4 families passed five validation gates and fresh-seed replication. The discovery pipeline survives the correction — it was the *runner's error scoring*, not the traps, that was broken.
-- ❌ "Opus is bad" — false. Opus is excellent at many things. It has two specific, replicated failure modes on this suite.
+- ✅ What survives: Opus 4-7 scores 79.4% overall on mini-v4-sample, with two real 0/10 blind spots — `scale_dependent_rendering` (shared with Sonnet 4-6) and `zero_width_space_split`† (Opus 0/10 confirmed on the redesigned 0.6.1 family; 7 of 8 panel models score 100% on it, so the blind spot is Opus-specific and real. Gemini Flash Lite's old 0% measured the retired tofu-box artifact and is withdrawn).
+- ✅ The premium tier is not universally better: Haiku 4-5 (91.2%), the cheapest Anthropic model, beats Opus 4-7 (79.4%) by 11.8 points overall, and Sonnet 4-6 (60.6%) by 30.6.
+- ✅ Discovery was convergent. Opus, GPT-5, and Gemini 2.5 Pro rotated as autoresearchers; all 11 promoted v3/v4 families passed five validation gates and fresh-seed replication. The discovery pipeline survives the correction, because the broken part was the runner's error scoring, not the traps.
+- ❌ "Opus is bad" — not what the data shows. Opus has two specific, replicated failure modes on this suite, nothing broader.
 
 Full audit trail in [`pdfhell/research/`](pdfhell/research/) — `results.tsv` (every candidate proposed), `keep/*.json` (every survivor with code), `budget.jsonl` (every cent), `METHODOLOGY.md`, `CORRECTION_NOTICE.md` (authoritative), `CONFIRMATION_REPORT.md` (retained, superseded).
 
 ## How traps get discovered
 
-pdfhell ships with an autoresearch loop ([`pdfhell.research`](pdfhell/research/README.md)) inspired by Karpathy's [`autoresearch`](https://github.com/karpathy/autoresearch). Instead of minimising a training loss, the loop maximises **cross-model discrimination**:
+pdfhell ships with an autoresearch loop ([`pdfhell.research`](pdfhell/research/README.md)) inspired by Karpathy's [`autoresearch`](https://github.com/karpathy/autoresearch). Instead of minimising a training loss, the loop maximises cross-model discrimination:
 
 ```
 score = (pass_max - pass_min) × novelty   if pass_max >= 0.7   else 0
@@ -164,7 +164,7 @@ score = (pass_max - pass_min) × novelty   if pass_max >= 0.7   else 0
 
 A *useful* trap is one where the best model can do it ≥70% of the time and the worst model can't — gated by novelty against existing keepers so we don't keep redundant discriminators. Three strong reasoning models (Opus 4-7, GPT-5, Gemini 2.5 Pro) rotate as the researcher; every proposal passes five validation gates (parseable, deterministic, answerable, forbidden-clean, lint-clean) before any vision-eval spend.
 
-The research loop spent **$54.00** across five logged sessions — a $6.71 first demo run, three short interim sessions ($2.21 + $0.62 + $0.49), and the $43.97 overnight run, every cent in [`budget.jsonl`](pdfhell/research/budget.jsonl) — plus ~$45 of fresh-seed confirmation, **≈$99 total**, and produced 11 surviving trap families. The agent does not get to merge its own work — every kept candidate sits in `keep/` until a human curator promotes it. See [`METHODOLOGY.md`](pdfhell/research/METHODOLOGY.md) for the formal write-up, [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for the validation pass.
+The research loop spent $54.00 across five logged sessions — a $6.71 first demo run, three short interim sessions ($2.21 + $0.62 + $0.49), and the $43.97 overnight run, every cent in [`budget.jsonl`](pdfhell/research/budget.jsonl) — plus ~$45 of fresh-seed confirmation, ≈$99 total, and produced 11 surviving trap families. The agent does not get to merge its own work — every kept candidate sits in `keep/` until a human curator promotes it. See [`METHODOLOGY.md`](pdfhell/research/METHODOLOGY.md) for the formal write-up, [`CONFIRMATION_REPORT.md`](pdfhell/research/CONFIRMATION_REPORT.md) for the validation pass.
 
 ```bash
 pip install 'pdfhell[research]>=0.5.4'
@@ -181,17 +181,13 @@ python -m pdfhell.research.curate --promotion-plan     # propose merge to next m
 | `footnote_override` | 10 | Legal clauses where a 6pt footnote overrides the body — liability caps with carve-outs, terminations with restrictions, data-residency with disaster-recovery exceptions. |
 | `split_table_across_pages` | 10 | Financial tables where the header row sits on page 1 and the body rows on page 2. RAG loaders that paginate independently lose column context. |
 
-Every case has a deterministic seed. Re-running with the same seed regenerates **byte-identical PDFs** and identical answer keys (`Canvas(invariant=True)` on every generator).
+Every case has a deterministic seed. Re-running with the same seed regenerates byte-identical PDFs and identical answer keys (`Canvas(invariant=True)` on every generator).
 
 **Suite versioning.** The `mini-v1` label + suite hash (`8ad87b8d`) fingerprints the exact (trap_family, seed) pairs measured. Adding a new trap family produces `mini-v2` with a different hash — runs across different hashes are not directly comparable. See the next section for the roadmap.
 
 ## Why this exists
 
-The current AI-eval state of the art uses an LLM-as-judge to grade another LLM's answer. That's circular: the same complexity that fools the agent fools the judge. PDF Hell rejects that:
-
-1. **Code-based ground truth.** The answer is a literal Python value the generator chose, not a frontier model's opinion.
-2. **A named failure mode per trap.** When a model fails, we know *which* specific failure caught it (e.g. "trusted the hidden OCR layer over the visible page").
-3. **A diagnostic signal**, not just a score. Per-trap-family breakdown tells you which assumption broke.
+The prevailing way to grade an LLM's answer is to ask another LLM. That's circular: the same complexity that fools the agent fools the judge. PDF Hell's bet is different. The answer is a literal Python value the generator chose, not a frontier model's opinion. Every trap names its failure mode, so when a model fails we know which specific failure caught it (e.g. "trusted the hidden OCR layer over the visible page"), and the per-trap-family breakdown tells you which assumption broke — a diagnostic, not just a score.
 
 ## Commands
 
@@ -291,7 +287,7 @@ Each runs through the same five validation gates as the autoresearched families 
 
 ## Hosted generator
 
-For document-AI teams who need adversarial test cases tailored to *their* templates (claims forms, MSAs, medical records, KYC docs), there's a hosted generator that takes your templates and produces adversarial variants with code-based ground truth — same methodology, your data shape.
+For document-AI teams who need adversarial test cases tailored to *their* templates (claims forms, MSAs, medical records, KYC docs), there's a hosted generator that takes your templates and produces adversarial variants graded the same way: the generator knows the answer. Same methodology, your data shape.
 
 Email `hello@multivon.ai` for early access, or see [multivon.ai/commercial](https://multivon.ai/commercial).
 
