@@ -1,0 +1,303 @@
+{
+  "model": "google:gemini-2.5-flash",
+  "suite": "redesigned-families-0.6.1",
+  "suite_version": "",
+  "suite_hash": "",
+  "n": 20,
+  "pass_rate": 0.8,
+  "pass_rate_ci": [
+    0.5839825677481064,
+    0.919342337420202
+  ],
+  "per_trap_pass": {
+    "unicode_confusable_total": 0.6,
+    "zero_width_space_split": 1.0
+  },
+  "per_trap_pass_ci": {
+    "unicode_confusable_total": [
+      0.31267376973365824,
+      0.8318196702937638
+    ],
+    "zero_width_space_split": [
+      0.7224672001371107,
+      0.9999999999999999
+    ]
+  },
+  "per_trap_fell_for_trap": {
+    "unicode_confusable_total": 0.3,
+    "zero_width_space_split": 0.0
+  },
+  "refused_rate": 0.0,
+  "api_error_rate": 0.0,
+  "modality": "pdf",
+  "raster_dpi": null,
+  "pdfium_build": "",
+  "cases": [
+    {
+      "case_id": "unicode_confusable_total-7006",
+      "trap_family": "unicode_confusable_total",
+      "correct": false,
+      "fell_for_trap": true,
+      "refused": false,
+      "matched_expected": false,
+      "matched_forbidden": [
+        "$8,446.84"
+      ],
+      "model_output": "$8,446.84",
+      "expected": "$11,869.85",
+      "failure_mode": "Models skim past the digit zero in 'T0TAL' (or cannot discriminate the 0 vs O glyphs in the render) and so cannot apply the disambiguation rule; they pick the wrong TOTAL row.",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7005",
+      "trap_family": "unicode_confusable_total",
+      "correct": false,
+      "fell_for_trap": true,
+      "refused": false,
+      "matched_expected": false,
+      "matched_forbidden": [
+        "$12,683.76"
+      ],
+      "model_output": "$12,683.76",
+      "expected": "$18,339.12",
+      "failure_mode": "Models skim past the digit zero in 'T0TAL' (or cannot discriminate the 0 vs O glyphs in the render) and so cannot apply the disambiguation rule; they pick the wrong TOTAL row.",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7004",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$9,924.53",
+      "expected": "$9,924.53",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7003",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$19,780.48",
+      "expected": "$19,780.48",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7002",
+      "trap_family": "unicode_confusable_total",
+      "correct": false,
+      "fell_for_trap": true,
+      "refused": false,
+      "matched_expected": false,
+      "matched_forbidden": [
+        "$8,432.49"
+      ],
+      "model_output": "$8,432.49",
+      "expected": "$12,294.73",
+      "failure_mode": "Models skim past the digit zero in 'T0TAL' (or cannot discriminate the 0 vs O glyphs in the render) and so cannot apply the disambiguation rule; they pick the wrong TOTAL row.",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7101",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$117,250.18",
+      "expected": "$117,250.18",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7001",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$25,915.06",
+      "expected": "$25,915.06",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7102",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$137,383.96",
+      "expected": "$137,383.96",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7007",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$26,135.17",
+      "expected": "$26,135.17",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7103",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$102,589.62",
+      "expected": "$102,589.62",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7008",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$23,452.87",
+      "expected": "$23,452.87",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7009",
+      "trap_family": "unicode_confusable_total",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": false,
+      "matched_forbidden": [],
+      "model_output": "The disambiguation clause states: \"the binding amount is the row whose label is written with the digit zero (0, U+0030) in place of the letter O.\"\n\nUpon close inspection of the invoice, both \"TOTAL:\" labels appear to be spelled with the letter 'O', not the digit '0'. However, the clause also states: \"Any label spelled entirely with letters",
+      "expected": "$22,527.76",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7104",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$146,758.93",
+      "expected": "$146,758.93",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7105",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$121,758.21",
+      "expected": "$121,758.21",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7106",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$145,507.60",
+      "expected": "$145,507.60",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7107",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$102,814.51",
+      "expected": "$102,814.51",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7108",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$126,033.46",
+      "expected": "$126,033.46",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7109",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$120,066.36",
+      "expected": "$120,066.36",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7110",
+      "trap_family": "zero_width_space_split",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$123,619.55",
+      "expected": "$123,619.55",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7010",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$24,167.50",
+      "expected": "$24,167.50",
+      "failure_mode": "",
+      "api_error": false
+    }
+  ]
+}

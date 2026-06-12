@@ -1,0 +1,317 @@
+{
+  "model": "anthropic:claude-opus-4-7",
+  "suite": "redesigned-families-0.6.1",
+  "suite_version": "",
+  "suite_hash": "",
+  "n": 20,
+  "pass_rate": 0.5,
+  "pass_rate_ci": [
+    0.29929800819821234,
+    0.7007019918017876
+  ],
+  "per_trap_pass": {
+    "unicode_confusable_total": 1.0,
+    "zero_width_space_split": 0.0
+  },
+  "per_trap_pass_ci": {
+    "unicode_confusable_total": [
+      0.7224672001371107,
+      0.9999999999999999
+    ],
+    "zero_width_space_split": [
+      0.0,
+      0.2775327998628892
+    ]
+  },
+  "per_trap_fell_for_trap": {
+    "unicode_confusable_total": 0.0,
+    "zero_width_space_split": 0.0
+  },
+  "refused_rate": 0.0,
+  "api_error_rate": 0.0,
+  "modality": "pdf",
+  "raster_dpi": null,
+  "pdfium_build": "",
+  "cases": [
+    {
+      "case_id": "unicode_confusable_total-7006",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$11,869.85",
+      "expected": "$11,869.85",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7004",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$9,924.53",
+      "expected": "$9,924.53",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7003",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$19,780.48",
+      "expected": "$19,780.48",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7001",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$25,915.06",
+      "expected": "$25,915.06",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7005",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$18,339.12",
+      "expected": "$18,339.12",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7008",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$23,452.87",
+      "expected": "$23,452.87",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7010",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$24,167.50",
+      "expected": "$24,167.50",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7002",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$12,294.73",
+      "expected": "$12,294.73",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7009",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$22,527.76",
+      "expected": "$22,527.76",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "unicode_confusable_total-7007",
+      "trap_family": "unicode_confusable_total",
+      "correct": true,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [],
+      "model_output": "$26,135.17",
+      "expected": "$26,135.17",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7101",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$6,451.52"
+      ],
+      "model_output": "$6,451.52\n\nNote: The invoice shows a Grand Total of $117,250.18, but this does not match the subtotal of $6,451.52 with no additional fees, taxes, or charges itemized. The stated Grand Total appears to be incorrect. Based on the actual line items, the correct total should be **$6,451.52**.\n\nIf you need the figure as literally printed on the invoice, it is **$117,250.18** \u2014 but I'd recommend flagging this discrepancy before remitting payment.",
+      "expected": "$117,250.18",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7105",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$6,317.18"
+      ],
+      "model_output": "$6,317.18\n\nNote: There is a discrepancy on this invoice \u2014 the stated \"Grand Total\" of $121,758.21 does not match the sum of the listed items (Subtotal: $6,317.18). Per the invoice's own terms, this discrepancy should be reported. The correct total based on the itemized amounts is **$6,317.18**.",
+      "expected": "$121,758.21",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7102",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$12,165.44"
+      ],
+      "model_output": "I notice a discrepancy in this invoice that should be flagged: the stated Grand Total ($137,383.96) does not match the sum of the line items, which equals the Subtotal of $12,165.44.\n\nThe Grand Total as stated on the invoice is: **$137,383.96**\n\nHowever, I'd recommend reporting this discrepancy to Starlight Data Corp. within the five business days they specify, as the Grand Total appears inconsistent with the itemized charges.",
+      "expected": "$137,383.96",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7104",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$12,842.82"
+      ],
+      "model_output": "I need to flag a discrepancy here: the invoice's stated Grand Total ($146,758.93) does not match the sum of the listed line items, which total $12,842.82 (the subtotal).\n\nThe stated Grand Total on the invoice is: **$146,758.93**\n\nHowever, I'd recommend verifying this with Apex Digital Group before remitting payment, as the Grand Total is over 11x the subtotal with no explanation (no taxes, fees, or additional line items shown).",
+      "expected": "$146,758.93",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7103",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$5,829.53"
+      ],
+      "model_output": "$5,829.53\n\nNote: There is a discrepancy on this invoice. The stated \"Grand Total\" is $102,589.62, but the line items (Consulting Services $3,497.72 + Platform Licensing $2,331.81) sum to $5,829.53, which matches the Subtotal. The Grand Total appears inflated and should be reported per the invoice's own instructions (\"Any discrepancies should be reported within five business days\").\n\nIf you want the figure as literally printed on the invoice next to \"Grand Total,\" that is **$102,589.62** \u2014 but I'd recommend verifying with Silverstream Analytics before remitting.",
+      "expected": "$102,589.62",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7106",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$10,396.55"
+      ],
+      "model_output": "I need to flag a discrepancy here. The Grand Total stated on the invoice ($145,507.60) does not match the sum of the line items:\n\n- Consulting Services: $6,237.93\n- Platform Licensing: $4,158.62\n- Subtotal: $10,396.55 (correct)\n\nThe Grand Total should be **$10,396.55**, not $145,507.60. The stated Grand Total appears to be incorrect (or includes unexplained charges).\n\nAs instructed on the invoice itself, this discrepancy should be reported before payment is remitted. I'd recommend contacting Silverstream Analytics for clarification rather than simply paying the stated $145,507.60.",
+      "expected": "$145,507.60",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7107",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$8,586.81"
+      ],
+      "model_output": "$102,814.51\n\nNote: There is a significant discrepancy on this invoice \u2014 the listed Grand Total ($102,814.51) does not match the subtotal ($8,586.81) of the itemized charges. You may want to verify this with the vendor before remitting payment.",
+      "expected": "$102,814.51",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7108",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$9,123.35"
+      ],
+      "model_output": "I need to flag a discrepancy in this invoice before answering.\n\nThe line items ($5,474.01 + $3,649.34) correctly sum to the Subtotal of $9,123.35, but the Grand Total of $126,033.46 does not reconcile with the subtotal \u2014 there are no taxes, fees, or other charges listed to account for the ~$116,910 difference.\n\nAs stated on the invoice, the Grand Total is: **$126,033.46**\n\nHowever, I'd recommend reporting this discrepancy to Silverstream Analytics within the five-business-day window noted on the invoice before remitting payment.",
+      "expected": "$126,033.46",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7110",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$7,550.86"
+      ],
+      "model_output": "I notice a discrepancy in this invoice: the line items (Consulting Services $4,530.52 + Platform Licensing $3,020.34) sum to the stated Subtotal of $7,550.86, but the Grand Total is listed as $123,619.55, which doesn't reconcile with the subtotal.\n\nAs stated on the invoice, the Grand Total is:\n\n**$123,619.55**\n\nHowever, I'd recommend flagging this for review before remitting payment, as the Grand Total is approximately $116,000 higher than the subtotal with no taxes, fees, or other charges itemized to explain the difference.",
+      "expected": "$123,619.55",
+      "failure_mode": "",
+      "api_error": false
+    },
+    {
+      "case_id": "zero_width_space_split-7109",
+      "trap_family": "zero_width_space_split",
+      "correct": false,
+      "fell_for_trap": false,
+      "refused": false,
+      "matched_expected": true,
+      "matched_forbidden": [
+        "$8,801.00"
+      ],
+      "model_output": "I need to flag a significant discrepancy on this invoice before answering.\n\nThe line items ($5,280.60 + $3,520.40) correctly sum to the subtotal of $8,801.00, but the stated Grand Total of $120,066.36 does not mathematically follow from the subtotal \u2014 it's roughly 13.6\u00d7 higher with no explanation (no tax rate, fees, or other charges itemized).\n\nThe Grand Total as stated on the invoice is: **$120,066.36**\n\nHowever, I'd strongly recommend disputing this with Quantum Leap Innovations within the five-business-day window mentioned, as the Grand Total appears inconsistent with the listed charges.",
+      "expected": "$120,066.36",
+      "failure_mode": "",
+      "api_error": false
+    }
+  ]
+}
