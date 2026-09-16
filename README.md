@@ -23,10 +23,10 @@ an external action; validate structured fields and the resulting application
 state against independent task requirements.
 
 Pin the package version, source PDF hash, model configuration, input modality
-and rendering DPI for comparisons. The development raster cache includes PDF
+and rendering DPI for comparisons. The 0.6.2 raster cache includes PDF
 content and renderer identity; replacing a file cannot silently reuse old pixels.
 Historical scores below use their original scorer and fixtures and have not
-been re-scored with these development changes. Synthetic seeds are not evidence
+been re-scored with the 0.6.2 changes. Synthetic seeds are not evidence
 of generalization to unseen invoice layouts or customer workflows.
 
 ## The headline finding (mini-v4-sample, 2026-05-24)

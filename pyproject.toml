@@ -1,18 +1,18 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pdfhell"
-version = "0.6.1"
+version = "0.6.2"
 description = "PDF Hell — adversarial PDFs that break AI document readers. Procedural ground truth, not LLM-as-judge."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "Multivon" }]
 keywords = ["llm", "evaluation", "pdf", "multimodal", "benchmark", "adversarial", "document-ai", "rag"]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

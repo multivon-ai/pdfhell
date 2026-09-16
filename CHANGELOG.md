@@ -4,6 +4,8 @@ All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelo
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-09-17
+
 ### Fixed
 
 - Raster cache keys include PDF content and renderer identity as well as DPI;
