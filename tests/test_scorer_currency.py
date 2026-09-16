@@ -5,6 +5,8 @@ Caught from user audit — GPT-4o output '780,803.18' for expected
 _strip_currency fallback in _contains_loose, both the prefixed and
 unprefixed forms now match (in either direction).
 """
+import pytest
+
 from pdfhell.case import HellCase
 from pdfhell.scorer import score_case
 
@@ -41,3 +43,17 @@ class TestCurrencyTolerance:
     def test_does_not_match_wrong_number(self):
         s = score_case(_case("$780,803.18"), "Total: $780,000.")
         assert not s.correct
+
+
+@pytest.mark.parametrize("answer", [
+    "€780,803.18", "EUR 780,803.18", "780,803.18 EUR", "$780,803.180",
+    "$780,803.189", "1,780,803.18", "-$780,803.18", "-780,803.18",
+])
+def test_wrong_currency_or_larger_numeric_token_does_not_pass(answer):
+    assert not score_case(_case("$780,803.18"), answer).correct
+
+
+def test_error_sentinel_cannot_pass_by_echoing_expected_answer():
+    result = score_case(_case("$1.00"), "[error] request failed for expected $1.00")
+    assert result.api_error
+    assert not result.correct

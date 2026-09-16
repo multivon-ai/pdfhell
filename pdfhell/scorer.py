@@ -26,7 +26,6 @@ from typing import Any
 
 from .case import HellCase
 
-
 # ─── Statistical-rigor utility ─────────────────────────────────────────────
 
 def wilson_ci(passes: int, n: int, *, z: float = 1.959963984540054) -> tuple[float, float]:
@@ -56,11 +55,32 @@ def wilson_ci(passes: int, n: int, *, z: float = 1.959963984540054) -> tuple[flo
 
 _WHITESPACE_RE = re.compile(r"\s+")
 _PUNCT_NORMALIZE_RE = re.compile(r"[.,;:]+\s*$")
-# Currency markers — matched immediately before a digit so we don't
-# strip stray $ in unrelated prose. Used by _contains_loose to give the
-# match a second pass when the model omitted the currency prefix the
-# answer key happened to include.
-_LEADING_CURRENCY_RE = re.compile(r"(?<![A-Za-z0-9])[$€£¥₹]\s*(?=\d)")
+# A monetary answer is a complete numeric token, never a substring of a
+# larger amount. Currency omission remains compatible; contradiction does not.
+_CURRENCY = r"[$€£¥₹]|USD|EUR|GBP|JPY|INR|CNY"
+_MONEY_RE = re.compile(
+    rf"(?<![\w.,$€£¥₹−+-])(?P<sign>[-−+])?(?P<prefix>{_CURRENCY})?\s*"
+    rf"(?P<number>[-−+]?\d[\d,]*(?:\.\d+)?)(?!\w|[.,]\d)"
+    rf"(?:\s*(?P<suffix>{_CURRENCY})(?![A-Za-z]))?", re.IGNORECASE,
+)
+_CURRENCY_ALIASES = {"$": "USD", "€": "EUR", "£": "GBP", "₹": "INR"}
+
+
+def _currency(marker: str) -> str:
+    return _CURRENCY_ALIASES.get(marker, marker.upper())
+
+
+def _contains_money(haystack: str, expected: re.Match) -> bool:
+    number = (expected["sign"] or "") + expected["number"]
+    currency = expected["prefix"] or expected["suffix"]
+    for candidate in _MONEY_RE.finditer(haystack):
+        markers = [candidate[key] for key in ("prefix", "suffix") if candidate[key]]
+        if (candidate["sign"] or "") + candidate["number"] != number:
+            continue
+        if currency and any(_currency(m) != _currency(currency) for m in markers):
+            continue
+        return True
+    return False
 
 
 def _normalize(s: str) -> str:
@@ -73,31 +93,18 @@ def _normalize(s: str) -> str:
     return s
 
 
-def _strip_currency(s: str) -> str:
-    """Drop a leading currency symbol that sits right before a digit. So
-    '$780,803.18' → '780,803.18' but 'invoice INV-$X-1' is left alone."""
-    return _LEADING_CURRENCY_RE.sub("", s)
-
-
 def _contains_loose(haystack: str, needle: str) -> bool:
-    """Tolerant contains-match used as the headline correctness signal.
+    """Lexical diagnostic only: cannot establish semantic correctness of prose.
 
-    First tries the straight normalised contains. If that fails AND the
-    needle starts with a currency symbol, retries with both sides stripped
-    of the leading currency prefix — so an answer key of '$780,803.18'
-    still matches a model output of '780,803.18'. This kept popping up
-    on the split_table_across_pages trap, where models tend to omit the
-    '$' even when the table header includes it.
+    Numeric answers use whole tokens and reject contradictory currencies.
+    Currency omission is retained for compatibility. This does not understand
+    negation or resolve multiple amounts; use structured task assertions for
+    workflow acceptance rather than treating this heuristic as an oracle.
     """
-    nh = _normalize(haystack)
-    nn = _normalize(needle)
-    if nn in nh:
-        return True
-    nh_stripped = _strip_currency(nh)
-    nn_stripped = _strip_currency(nn)
-    if nn_stripped != nn and nn_stripped in nh_stripped:
-        return True
-    return False
+    expected = _MONEY_RE.fullmatch(needle.strip())
+    if expected:
+        return _contains_money(haystack, expected)
+    return _normalize(needle) in _normalize(haystack)
 
 
 @dataclass(slots=True)
@@ -209,9 +216,9 @@ def score_case(case: HellCase, model_output: str) -> CaseScore:
         matched_forbidden = [
             f for f in case.forbidden_answers if _contains_loose(model_output, f)
         ]
-    correct = matched_expected and not matched_forbidden
-    refused = (not matched_expected) and (not matched_forbidden) and _looks_like_refusal(model_output)
-    fell_for_trap = bool(matched_forbidden) and not matched_expected
+    correct = matched_expected and not matched_forbidden and not api_error
+    refused = (not api_error) and (not matched_expected) and (not matched_forbidden) and _looks_like_refusal(model_output)
+    fell_for_trap = not api_error and bool(matched_forbidden) and not matched_expected
     failure_mode = ""
     if fell_for_trap:
         failure_mode = case.metadata.get("expected_failure_mode", "")
@@ -262,7 +269,7 @@ class SuiteReport:
     @property
     def pass_rate_ci(self) -> tuple[float, float]:
         """95% Wilson confidence interval on the overall pass rate."""
-        return wilson_ci(int(round(self.pass_rate * self.n)), self.n)
+        return wilson_ci(round(self.pass_rate * self.n), self.n)
 
     @property
     def per_trap_pass_ci(self) -> dict[str, tuple[float, float]]:

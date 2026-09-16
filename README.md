@@ -5,13 +5,29 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Downloads](https://static.pepy.tech/badge/pdfhell/month)](https://pepy.tech/project/pdfhell)
 
-> Powered by [multivon-eval](https://github.com/multivon-ai/multivon-eval) — the same calibration-first engine that found κ=0.03 across three eval frameworks.
+> Integrates with [multivon-eval](https://github.com/multivon-ai/multivon-eval) for evaluation and diagnostic graders.
 
 **[Live leaderboard](https://multivon.ai/leaderboard)** · [Website](https://multivon.ai/pdfhell) · [PyPI](https://pypi.org/project/pdfhell) · [multivon-eval (engine)](https://github.com/multivon-ai/multivon-eval)
 
 **Adversarial PDFs that stress-test AI document readers — with procedural ground truth, not LLM-as-judge.**
 
 PDF Hell is a small benchmark for specific failure modes in AI document pipelines. Every test case is a PDF generated *from code*, so the correct answer is known exactly, and the complexity that fools the model is never asked to grade it.
+
+## What the score means
+
+The default scorer checks expected and forbidden strings. It now rejects
+conflicting currency markers and numeric substrings, but it still cannot
+understand negation or prove a prose answer is semantically correct. Token-based
+prose checks can miss contradictions. Do not use this score alone to authorize
+an external action; validate structured fields and the resulting application
+state against independent task requirements.
+
+Pin the package version, source PDF hash, model configuration, input modality
+and rendering DPI for comparisons. The development raster cache includes PDF
+content and renderer identity; replacing a file cannot silently reuse old pixels.
+Historical scores below use their original scorer and fixtures and have not
+been re-scored with these development changes. Synthetic seeds are not evidence
+of generalization to unseen invoice layouts or customer workflows.
 
 ## The headline finding (mini-v4-sample, 2026-05-24)
 

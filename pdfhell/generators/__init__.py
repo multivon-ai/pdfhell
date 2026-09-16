@@ -59,11 +59,9 @@ GENERATORS: dict[str, GeneratorFn] = {
     "zero_width_space_split": _zero_width_space_split,
     "currency_mismatch_conversion": _currency_mismatch_conversion,
     "mirrored_footer_notice": _mirrored_footer_notice,
-    # mini-v4 (2026-05-23): second autoresearch cycle, 115 candidates
-    # explored, 7 surviving traps. Striking emergent pattern:
-    # Claude Opus 4-7 fails 0/15-20 on EVERY new trap. Haiku 4-5 often
-    # passes 100% on the same trap. Premium tier has a systematic
-    # blind spot the cheaper sibling doesn't share.
+    # mini-v4: seven additional mechanisms. The original all-fail Opus
+    # claim was retracted: provider errors had been counted as model failures.
+    # See research/CORRECTION_NOTICE.md and dated published runs.
     "em_dash_minus_sign": _em_dash_minus_sign,
     "upside_down_amount": _upside_down_amount,
     "checksum_validation_rule": _checksum_validation_rule,

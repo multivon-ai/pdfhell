@@ -2,6 +2,23 @@
 
 All notable changes to pdfhell. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- Raster cache keys include PDF content and renderer identity as well as DPI;
+  writes are atomic. Replacing a PDF cannot reuse stale page images.
+- Monetary lexical matching rejects conflicting currency symbols/codes and
+  partial numeric matches. API-error responses cannot count as correct.
+- Removed a retracted model-performance assertion from generator comments and
+  unsubstantiated production-prevalence claims from the hidden-OCR description.
+
+### Clarified
+
+- README documents the limits of lexical scoring and labels historical results
+  as using the original scorer. Prose matching remains a heuristic, not a
+  workflow acceptance oracle. These changes do not re-score historical runs.
+
 ## [0.6.1] — 2026-06-12
 
 ### Fixed — two trap families rendered visible tofu boxes where they claimed visual normality

@@ -5,17 +5,10 @@ that visible glyph is an invisible text layer that says ``$Y`` instead
 (rendered with PDF text render mode 3 — placed in the text content
 stream but never rasterised).
 
-A vision-only model reads the rendered pixels and answers ``$X``. A
-text-extraction pipeline (pdfminer, PyMuPDF, pdfplumber, most RAG
-loaders) reads the invisible layer and answers ``$Y``. An agent that
-combines both — without resolving the conflict — answers whichever the
-final stage trusted.
-
-This is the most common silent failure mode for "PDF understanding" in
-production: a scanned-then-OCR'd document where the OCR layer disagrees
-with the rendered page. We procedurally fabricate it so we know exactly
-which answer is correct (the visible one) and which answer is the
-specific failure mode the trap was designed to catch (the hidden one).
+Pixels contain only the visible amount. Text extraction can expose both
+amounts; which one a downstream pipeline trusts depends on its implementation.
+This controlled conflict is a stress case, not an estimate of production
+failure prevalence. The question's intended answer is the visible total.
 """
 from __future__ import annotations
 
@@ -25,7 +18,7 @@ from ..case import HellCase
 from . import _common as C
 
 
-# Visible amounts are sampled from a realistic invoice distribution.
+# Visible amounts are sampled from a small synthetic set.
 # The hidden amount is *not* a small perturbation — it's a meaningfully
 # different value, because if the agent's downstream user processes it,
 # the dollar gap should be visible.
@@ -97,7 +90,7 @@ def generate(seed: int) -> tuple[bytes, HellCase]:
         # The trap: place the *wrong* amount in an invisible text layer.
         # It lands at the same coordinate as the visible total, so a
         # text-extraction pipeline that reads the underlying text stream
-        # by position would see the hidden value, not the visible one.
+        # by position can encounter both values at the same location.
         C.draw_invisible_text(c, hidden_str, x=220, y=y - 30, size=13)
 
         # Footer

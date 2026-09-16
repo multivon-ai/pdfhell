@@ -15,8 +15,10 @@ Honesty notes baked into the design:
 """
 from __future__ import annotations
 
+import hashlib
+import os
 from pathlib import Path
-
+from tempfile import NamedTemporaryFile
 
 DEFAULT_DPI = 150
 
@@ -45,27 +47,41 @@ def rasterize_pdf(pdf_path: Path, *, dpi: int = DEFAULT_DPI,
                   out_dir: Path | None = None) -> list[Path]:
     """Render every page of ``pdf_path`` to PNG at ``dpi``.
 
-    Output files land next to the PDF (or in ``out_dir``) as
-    ``<stem>.dpi<dpi>.p<page>.png`` — the DPI is part of the filename so
-    runs at different DPIs never reuse each other's cache. Existing
-    outputs are reused without re-rendering.
+    Cache identity includes PDF bytes, DPI and renderer version. Replacing a
+    PDF at the same path cannot reuse the old pixels. Existing files from the
+    old path-only cache are ignored. Writes are atomic for concurrent readers.
     """
     pypdfium2 = _pdfium()
+    if isinstance(dpi, bool) or not isinstance(dpi, int) or dpi <= 0:
+        raise ValueError("dpi must be a positive integer")
     pdf_path = Path(pdf_path)
     target = Path(out_dir) if out_dir is not None else pdf_path.parent
     target.mkdir(parents=True, exist_ok=True)
 
-    doc = pypdfium2.PdfDocument(str(pdf_path))
+    source = pdf_path.read_bytes()
+    renderer = str(getattr(pypdfium2, "PYPDFIUM_INFO", "unknown")) + ":" + pdfium_build()
+    identity = hashlib.sha256(source + b"\0" + renderer.encode()).hexdigest()
+    doc = pypdfium2.PdfDocument(source)
     try:
         paths: list[Path] = []
         for i in range(len(doc)):
-            png = target / f"{pdf_path.stem}.dpi{dpi}.p{i + 1}.png"
+            png = target / f"{pdf_path.stem}.{identity}.dpi{dpi}.p{i + 1}.png"
             if not png.exists():
-                bitmap = doc[i].render(scale=dpi / 72)
+                page = doc[i]
                 try:
-                    bitmap.to_pil().save(png)
+                    bitmap = page.render(scale=dpi / 72)
+                    try:
+                        with NamedTemporaryFile(dir=target, suffix=".png", delete=False) as tmp:
+                            temporary = Path(tmp.name)
+                        try:
+                            bitmap.to_pil().save(temporary)
+                            os.replace(temporary, png)
+                        finally:
+                            temporary.unlink(missing_ok=True)
+                    finally:
+                        bitmap.close()
                 finally:
-                    bitmap.close()
+                    page.close()
             paths.append(png)
         return paths
     finally:

@@ -15,7 +15,7 @@ import pytest
 
 pytest.importorskip("pypdfium2")
 
-from pdfhell.cli import main, _default_run_path
+from pdfhell.cli import _default_run_path, main
 from pdfhell.raster import rasterize_pdf
 from pdfhell.scorer import SuiteReport
 
@@ -43,6 +43,33 @@ def test_rasterize_writes_dpi_tagged_pngs_and_caches(tmp_path):
     before = pages[0].stat().st_mtime_ns
     rasterize_pdf(pdf, dpi=150)
     assert pages[0].stat().st_mtime_ns == before
+
+
+def test_replacing_pdf_does_not_reuse_stale_pixels(tmp_path):
+    from pdfhell.generators import generate_case
+
+    pdf = tmp_path / "invoice.pdf"
+    pdf.write_bytes(generate_case("hidden_ocr_mismatch", 42)[0])
+    old = rasterize_pdf(pdf)[0]
+    pdf.write_bytes(generate_case("hidden_ocr_mismatch", 43)[0])
+    new = rasterize_pdf(pdf)[0]
+    assert old != new
+    assert old.read_bytes() != new.read_bytes()
+
+
+def test_renderer_change_invalidates_cache(tmp_path, monkeypatch):
+    from pdfhell import raster
+
+    pdf = next(_make_case(tmp_path).glob("*.pdf"))
+    old = rasterize_pdf(pdf)
+    monkeypatch.setattr(raster, "pdfium_build", lambda: "different-build")
+    assert rasterize_pdf(pdf) != old
+
+
+@pytest.mark.parametrize("dpi", [0, -1, True, 1.5])
+def test_invalid_dpi_rejected(tmp_path, dpi):
+    with pytest.raises(ValueError, match="positive integer"):
+        rasterize_pdf(tmp_path / "unused.pdf", dpi=dpi)
 
 
 def test_pixels_run_sends_pngs_and_annotates_report(tmp_path, monkeypatch):
